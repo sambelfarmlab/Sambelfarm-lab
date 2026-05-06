@@ -30,3 +30,23 @@ export function saveConfig(config: Partial<Config>) {
   localStorage.setItem("sf_config", JSON.stringify(updated));
   return updated;
 }
+
+/**
+ * Fetches server-side config (e.g. NOTION_DATABASE_ID secret) from the backend
+ * and merges it into localStorage. The server value always wins for dbId so that
+ * the Replit Secret is the single source of truth.
+ */
+export async function fetchRemoteConfig(token: string): Promise<void> {
+  try {
+    const res = await fetch("/api/config", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { notion_database_id: string | null };
+    if (data.notion_database_id) {
+      saveConfig({ dbId: data.notion_database_id });
+    }
+  } catch {
+    // silently ignore — app still works with manually-entered dbId
+  }
+}
