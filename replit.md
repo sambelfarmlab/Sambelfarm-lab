@@ -1,45 +1,67 @@
-# [Project name]
+# Sambelfarm Content Lab
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An AI-powered content creation tool for SambelFarm — brainstorm ideas, generate scripts, analyze viral potential with TRIBE v2, and sync everything to Notion.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080, proxy at /api)
+- `pnpm --filter @workspace/sambelfarm run dev` — run the frontend (Vite)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
+- Required env: `SESSION_SECRET`, `ADMIN_PASSWORD`, `NOTION_API_KEY`, `AI_INTEGRATIONS_ANTHROPIC_BASE_URL`, `AI_INTEGRATIONS_ANTHROPIC_API_KEY`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Frontend: React 18 + Vite, Tailwind CSS v4, shadcn/ui, wouter (routing), TanStack Query
+- API: Express 5 (port 8080 → proxy path `/api`)
+- AI: Claude via Anthropic SDK (`@workspace/integrations-anthropic-ai`)
+- Notion: native fetch calls to Notion API v1
+- Auth: HMAC-SHA256(SESSION_SECRET, ADMIN_PASSWORD) — stateless token stored in localStorage
+- Codegen: Orval from OpenAPI spec → React Query hooks + Zod schemas
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for all routes)
+- `lib/api-client-react/src/generated/api.ts` — Generated React Query hooks
+- `lib/api-zod/src/generated/api.ts` — Generated Zod schemas (used server-side)
+- `artifacts/api-server/src/routes/` — auth.ts, claude.ts, notion.ts, health.ts
+- `artifacts/sambelfarm/src/pages/` — login, home, brainstorm, generator, editor, calendar, settings
+- `artifacts/sambelfarm/src/lib/` — auth.tsx (context), config.ts (localStorage), utils.ts
+- `artifacts/sambelfarm/src/components/layout.tsx` — bottom nav bar layout
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Stateless HMAC auth**: token = HMAC-SHA256(SESSION_SECRET, ADMIN_PASSWORD). No DB or session store needed.
+- **Auth token via `setAuthTokenGetter`**: registered on app mount in AuthProvider, auto-injects `Authorization: Bearer` header on every API call via `customFetch`.
+- **Notion proxied server-side**: NOTION_API_KEY never exposed to browser; all Notion calls go through `/api/notion/*`.
+- **Config in localStorage**: DNA style, custom prompt, Notion DB ID, AI model choice stored as `sf_config` JSON.
+- **Claude model selectable**: 4 models exposed in Settings; all routes validate against allowlist.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Login**: Password-based auth (HMAC token)
+- **Home**: Dashboard with recent scripts from Notion + quick nav
+- **Brainstorm**: Enter keyword → Claude generates 5 content ideas with hook + angle
+- **Generator**: Pick Jenis Konten (Reels/Stories/Feed/Carousel) + Tone → Claude generates full script
+- **Editor**: Edit scripts + TRIBE v2 viral analysis (Trigger, Resonance, Impact, Behavior, Engagement). Browse/search Notion scripts. Repurpose format or rewrite with new tone via Claude.
+- **Calendar**: Monthly calendar with Notion-backed content schedule, color-coded by status
+- **Settings**: Notion DB ID, AI model, DNA Style, Custom Prompt — all saved to localStorage
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Language: Indonesian UI (Bahasa Indonesia)
+- Brand: Sage #7D9D85 (primary), Terra #E2725B (accent), Gold #C9A96E, Font: Plus Jakarta Sans
+- Light mode only, no dark mode
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Always run codegen after changing `lib/api-spec/openapi.yaml`
+- The `sorts` param in Notion query uses timestamp OR property format — cast as `unknown` in TypeScript
+- Frontend uses `import.meta.env.BASE_URL` for wouter base path (set by Vite artifact config)
+- `setAuthTokenGetter` must be called before any API hook runs — done in AuthProvider useEffect
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See the `pnpm-workspace` skill for workspace structure and TypeScript setup
+- Notion API docs: https://developers.notion.com/reference

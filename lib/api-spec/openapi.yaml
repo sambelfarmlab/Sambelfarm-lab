@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Sambelfarm Content Lab API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: claude
+    description: Claude AI proxy
+  - name: notion
+    description: Notion integration proxy
 paths:
   /healthz:
     get:
@@ -24,6 +30,163 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with admin password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Validate token
+      responses:
+        "200":
+          description: Token valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /claude:
+    post:
+      operationId: claudeProxy
+      tags: [claude]
+      summary: Claude AI proxy for script generation and TRIBE analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaudeRequestBody"
+      responses:
+        "200":
+          description: Claude response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaudeResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: AI error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notion/query:
+    post:
+      operationId: notionQuery
+      tags: [notion]
+      summary: Query Notion database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotionQueryBody"
+      responses:
+        "200":
+          description: Notion query result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotionQueryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notion/pages:
+    post:
+      operationId: notionCreatePage
+      tags: [notion]
+      summary: Create a new Notion page (save script)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotionCreatePageBody"
+      responses:
+        "200":
+          description: Page created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotionPageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notion/pages/{pageId}:
+    patch:
+      operationId: notionUpdatePage
+      tags: [notion]
+      summary: Update an existing Notion page (edit script)
+      parameters:
+        - name: pageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotionUpdatePageBody"
+      responses:
+        "200":
+          description: Page updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotionPageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +197,124 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    LoginBody:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+        - token
+
+    MeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+
+    ClaudeRequestBody:
+      type: object
+      properties:
+        system:
+          type: string
+        prompt:
+          type: string
+        model:
+          type: string
+      required:
+        - prompt
+
+    ClaudeResponse:
+      type: object
+      properties:
+        result:
+          type: string
+      required:
+        - result
+
+    NotionQueryBody:
+      type: object
+      properties:
+        database_id:
+          type: string
+        filter:
+          type: object
+        sorts:
+          type: array
+          items:
+            type: object
+        page_size:
+          type: integer
+      required:
+        - database_id
+
+    NotionQueryResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+        has_more:
+          type: boolean
+        next_cursor:
+          type: ["string", "null"]
+      required:
+        - results
+        - has_more
+
+    NotionCreatePageBody:
+      type: object
+      properties:
+        database_id:
+          type: string
+        properties:
+          type: object
+        children:
+          type: array
+          items:
+            type: object
+      required:
+        - database_id
+        - properties
+
+    NotionUpdatePageBody:
+      type: object
+      properties:
+        properties:
+          type: object
+        children:
+          type: array
+          items:
+            type: object
+      required:
+        - properties
+
+    NotionPageResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        properties:
+          type: object
+      required:
+        - id
