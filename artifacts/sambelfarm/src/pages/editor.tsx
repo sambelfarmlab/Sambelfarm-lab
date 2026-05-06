@@ -1,81 +1,146 @@
-import { useState, useEffect } from "react";
-import { useNotionQuery, useClaudeProxy } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useNotionCreatePage, useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
+import { useDraft, type SavedScript } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Edit3, Search, RefreshCw, Sparkles, BarChart2 } from "lucide-react";
+import {
+  Edit3, Sparkles, RefreshCw, Save, Copy, Check, BarChart2,
+  BookOpen, ChevronDown, ChevronUp
+} from "lucide-react";
 
-interface NotionPage {
-  id: string;
-  properties: Record<string, {
-    title?: Array<{ plain_text: string }>;
-    select?: { name: string };
-    rich_text?: Array<{ plain_text: string }>;
-    number?: number;
-    date?: { start: string };
-  }>;
+const PLATFORMS = ["TikTok", "Instagram Reels", "Instagram Stories", "Instagram Feed", "YouTube Shorts", "YouTube"];
+const JENIS_KONTEN = ["Reels", "Stories", "Feed Post", "Carousel", "Tutorial", "Behind the Scenes"];
+const TONES = ["Storytelling", "Edukatif", "Promosi", "Nyeleneh", "Roasting"];
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <Button variant="ghost" size="sm" onClick={copy} className="h-6 text-[10px] gap-1 px-2">
+      {copied ? <><Check size={10} />{label} disalin</> : <><Copy size={10} />Salin {label}</>}
+    </Button>
+  );
 }
 
-interface TribeScore {
+function ScoreBar({ label, value }: { label: string; value: number }) {
+  const color = value >= 75 ? "bg-primary" : value >= 50 ? "bg-secondary" : "bg-accent";
+  const textColor = value >= 75 ? "text-primary" : value >= 50 ? "text-secondary" : "text-accent";
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground w-24 shrink-0">{label}</span>
+      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${value}%` }} />
+      </div>
+      <span className={`text-xs font-semibold w-7 text-right ${textColor}`}>{value}</span>
+    </div>
+  );
+}
+
+interface TribeResult {
   trigger: number;
   resonance: number;
   impact: number;
   behavior: number;
   engagement: number;
-  total: number;
-  summary: string;
+  skor_viralitas: number;
+  analisis_ai: string;
+  rekomendasi: string;
+  caption_tiktok: string;
+  caption_instagram: string;
+  caption_yt_shorts: string;
 }
 
-const TONES = ["Storytelling", "Edukatif", "Promosi", "Nyeleneh", "Roasting"];
-const PLATFORMS = ["Reels", "TikTok", "Stories", "Feed Post", "Carousel", "YouTube Shorts"];
-
-function TribeAnalysis({ script, model }: { script: string; model: string }) {
-  const [tribe, setTribe] = useState<TribeScore | null>(null);
+export default function EditorPage() {
+  const { draft, setDraft, resetDraft, savedScripts, addSaved } = useDraft();
+  const [tab, setTab] = useState<"editor" | "saved">("editor");
   const [analyzing, setAnalyzing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [adaptOpen, setAdaptOpen] = useState(false);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [selectedSaved, setSelectedSaved] = useState<SavedScript | null>(null);
+  const [adaptPlatform, setAdaptPlatform] = useState("TikTok");
+  const [adaptJenis, setAdaptJenis] = useState("Reels");
+  const [rewriteTone, setRewriteTone] = useState("Edukatif");
+  const [aiWorking, setAiWorking] = useState(false);
+
+  const notionCreate = useNotionCreatePage();
   const claudeProxy = useClaudeProxy();
   const { toast } = useToast();
+  const config = getConfig();
 
-  const analyze = () => {
-    if (!script.trim()) return;
+  const analyzeTribe = () => {
+    if (!draft.script.trim()) return;
     setAnalyzing(true);
 
-    const prompt = `Analisis script konten berikut menggunakan framework TRIBE v2 (Trigger, Resonance, Impact, Behavior, Engagement). Berikan skor 0-100 untuk masing-masing dimensi.
+    const prompt = `Analisis script konten berikut menggunakan framework TRIBE v2 (Trigger, Resonance, Impact, Behavior, Engagement). Lalu buat caption siap posting untuk 3 platform.
 
 SCRIPT:
-${script}
+${draft.script}
 
-Format respons sebagai JSON:
+CONTEXT:
+- Platform utama: ${draft.platform}
+- Jenis konten: ${draft.jenisKonten}
+- Tone: ${draft.tone}
+- Topik: ${draft.topik}
+
+Format respons sebagai JSON (tanpa markdown code block):
 {
   "trigger": <skor 0-100>,
   "resonance": <skor 0-100>,
   "impact": <skor 0-100>,
   "behavior": <skor 0-100>,
   "engagement": <skor 0-100>,
-  "total": <rata-rata keseluruhan>,
-  "summary": "<ringkasan analisis 2-3 kalimat>"
+  "skor_viralitas": <rata-rata keseluruhan>,
+  "analisis_ai": "<ringkasan analisis 2-3 kalimat, jujur dan to-the-point>",
+  "rekomendasi": "<2-3 rekomendasi perbaikan konkret, pisahkan dengan | >",
+  "caption_tiktok": "<caption TikTok dengan hashtag, max 150 kata>",
+  "caption_instagram": "<caption Instagram yang engaging, max 200 kata>",
+  "caption_yt_shorts": "<judul + deskripsi YouTube Shorts singkat>"
 }
 
-Penjelasan dimensi:
-- Trigger: seberapa kuat hook/pembuka memicu rasa ingin tahu
-- Resonance: seberapa dalam konten beresonansi dengan audiens
-- Impact: seberapa besar dampak/nilai yang diberikan
-- Behavior: seberapa kuat dorongan untuk bertindak (like/share/save)
+Penjelasan skor TRIBE:
+- Trigger: kekuatan hook/pembuka memicu rasa ingin tahu
+- Resonance: kedalaman resonansi dengan audiens target
+- Impact: nilai/dampak yang diberikan
+- Behavior: dorongan untuk bertindak (like/share/save/beli)
 - Engagement: prediksi tingkat interaksi keseluruhan`;
 
     claudeProxy.mutate(
-      { data: { system: "Kamu adalah analis konten digital yang ahli mengevaluasi viralitas konten Indonesia.", prompt, model } },
+      { data: { system: "Kamu adalah analis konten digital senior yang ahli mengevaluasi viralitas konten Indonesia dan menulis caption.", prompt, model: config.aiModel } },
       {
         onSuccess: (data) => {
           try {
             const match = data.result.match(/\{[\s\S]*\}/);
             if (match) {
-              setTribe(JSON.parse(match[0]) as TribeScore);
+              const tribe = JSON.parse(match[0]) as TribeResult;
+              setDraft({
+                skorViralitas: tribe.skor_viralitas,
+                tribeTrigger: tribe.trigger,
+                tribeResonance: tribe.resonance,
+                tribeImpact: tribe.impact,
+                tribeBehavior: tribe.behavior,
+                tribeEngagement: tribe.engagement,
+                analisisAI: tribe.analisis_ai,
+                rekomendasi: tribe.rekomendasi,
+                captionTikTok: tribe.caption_tiktok,
+                captionInstagram: tribe.caption_instagram,
+                captionYTShorts: tribe.caption_yt_shorts,
+              });
+              setShowAnalysis(true);
+            } else {
+              toast({ title: "Gagal parse analisis", variant: "destructive" });
             }
           } catch {
             toast({ title: "Gagal parse analisis", variant: "destructive" });
@@ -90,156 +155,167 @@ Penjelasan dimensi:
     );
   };
 
-  const scoreColor = (s: number) => s >= 75 ? "text-primary" : s >= 50 ? "text-secondary" : "text-accent";
-  const barColor = (s: number) => s >= 75 ? "bg-primary" : s >= 50 ? "bg-secondary" : "bg-accent";
+  const truncate = (text: string, max = 2000) => text.length > max ? text.slice(0, max) : text;
 
-  return (
-    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BarChart2 size={16} className="text-primary" />
-          <span className="font-semibold text-sm">Analisis TRIBE v2</span>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          data-testid="button-analyze-tribe"
-          onClick={analyze}
-          disabled={analyzing || !script.trim()}
-          className="h-7 text-xs"
-        >
-          {analyzing ? <><RefreshCw size={12} className="mr-1 animate-spin" />Menganalisis...</> : <><Sparkles size={12} className="mr-1" />Analisis</>}
-        </Button>
-      </div>
-
-      {tribe && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-center">
-            <div className="text-center">
-              <div className={`text-3xl font-bold ${scoreColor(tribe.total)}`}>{tribe.total}</div>
-              <div className="text-xs text-muted-foreground">Skor Viralitas</div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {([
-              { key: "trigger", label: "Trigger" },
-              { key: "resonance", label: "Resonance" },
-              { key: "impact", label: "Impact" },
-              { key: "behavior", label: "Behavior" },
-              { key: "engagement", label: "Engagement" },
-            ] as const).map(({ key, label }) => (
-              <div key={key} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-20 shrink-0">{label}</span>
-                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${barColor(tribe[key])}`}
-                    style={{ width: `${tribe[key]}%` }}
-                  />
-                </div>
-                <span className={`text-xs font-semibold w-8 text-right ${scoreColor(tribe[key])}`}>{tribe[key]}</span>
-              </div>
-            ))}
-          </div>
-
-          <p className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">{tribe.summary}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function EditorPage() {
-  const [tab, setTab] = useState<"new" | "saved">("new");
-  const [editScript, setEditScript] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterTone, setFilterTone] = useState("all");
-  const [pages, setPages] = useState<NotionPage[]>([]);
-  const [loadedPages, setLoadedPages] = useState(false);
-  const [repurposeOpen, setRepurposeOpen] = useState(false);
-  const [rewriteOpen, setRewriteOpen] = useState(false);
-  const [selectedPage, setSelectedPage] = useState<NotionPage | null>(null);
-  const [repurposePlatform, setRepurposePlatform] = useState("TikTok");
-  const [rewriteTone, setRewriteTone] = useState("Edukatif");
-
-  const notionQuery = useNotionQuery();
-  const claudeProxy = useClaudeProxy();
-  const { toast } = useToast();
-  const config = getConfig();
-
-  useEffect(() => {
-    if (tab === "saved" && !loadedPages) {
-      notionQuery.mutate(
-        { data: { database_id: "", page_size: 20, sorts: [{ timestamp: "last_edited_time", direction: "descending" } as unknown as Record<string, string>] } },
-        {
-          onSuccess: (data) => {
-            setPages((data as unknown as { results: NotionPage[] }).results ?? []);
-            setLoadedPages(true);
-          },
-          onError: () => setLoadedPages(true),
-        }
-      );
+  const saveToNotion = () => {
+    if (!draft.script.trim()) {
+      toast({ title: "Script kosong", description: "Tulis atau generate script dulu.", variant: "destructive" });
+      return;
     }
-  }, [tab]);
+    setSaving(true);
 
-  const filteredPages = pages.filter((p) => {
-    const title = (p.properties?.Judul?.title?.[0]?.plain_text ?? p.properties?.Name?.title?.[0]?.plain_text ?? "").toLowerCase();
-    const tone = p.properties?.Tone?.select?.name ?? "";
-    const matchSearch = !searchQuery || title.includes(searchQuery.toLowerCase());
-    const matchTone = filterTone === "all" || tone === filterTone;
-    return matchSearch && matchTone;
-  });
+    const properties: Record<string, unknown> = {
+      Judul: { title: [{ text: { content: draft.judul || draft.topik || "Tanpa Judul" } }] },
+      Topik: { rich_text: [{ text: { content: truncate(draft.topik) } }] },
+      Platform: { select: { name: draft.platform } },
+      "Jenis Konten": { select: { name: draft.jenisKonten } },
+      Tone: { select: { name: draft.tone } },
+      Script: { rich_text: [{ text: { content: truncate(draft.script) } }] },
+      "Status Revisi": { select: { name: "Draft" } },
+    };
 
-  const loadIntoEditor = (page: NotionPage) => {
-    const script = page.properties?.Script?.rich_text?.[0]?.plain_text ?? "";
-    setEditScript(script);
-    setTab("new");
+    if (draft.tanggal) {
+      properties["Tanggal"] = { date: { start: draft.tanggal } };
+    }
+    if (draft.konsep) {
+      properties["Konsep"] = { rich_text: [{ text: { content: truncate(draft.konsep) } }] };
+    }
+    if (draft.skorViralitas !== null) {
+      properties["Skor Viralitas"] = { number: draft.skorViralitas };
+    }
+    if (draft.analisisAI) {
+      properties["Analisis AI"] = { rich_text: [{ text: { content: truncate(draft.analisisAI) } }] };
+    }
+    if (draft.rekomendasi) {
+      properties["Rekomendasi"] = { rich_text: [{ text: { content: truncate(draft.rekomendasi) } }] };
+    }
+    if (draft.captionTikTok) {
+      properties["Caption TikTok"] = { rich_text: [{ text: { content: truncate(draft.captionTikTok) } }] };
+    }
+    if (draft.captionInstagram) {
+      properties["Caption Instagram"] = { rich_text: [{ text: { content: truncate(draft.captionInstagram) } }] };
+    }
+    if (draft.captionYTShorts) {
+      properties["Caption YT Shorts"] = { rich_text: [{ text: { content: truncate(draft.captionYTShorts) } }] };
+    }
+
+    notionCreate.mutate(
+      { data: { database_id: "", properties: properties as Record<string, string> } },
+      {
+        onSuccess: (data) => {
+          const pageId = (data as unknown as { id: string }).id ?? "";
+          const saved: SavedScript = {
+            ...draft,
+            notionPageId: pageId,
+            savedAt: new Date().toISOString(),
+          };
+          addSaved(saved);
+          resetDraft();
+          setShowAnalysis(false);
+          setTab("saved");
+          toast({ title: "Script tersimpan ke Notion!" });
+          setSaving(false);
+        },
+        onError: (err) => {
+          const msg = (err as Error).message ?? "Gagal simpan";
+          toast({ title: "Gagal menyimpan ke Notion", description: msg, variant: "destructive" });
+          setSaving(false);
+        },
+      }
+    );
   };
 
-  const repurpose = () => {
-    if (!selectedPage) return;
-    const script = selectedPage.properties?.Script?.rich_text?.[0]?.plain_text ?? "";
+  const adaptScript = () => {
+    if (!selectedSaved) return;
+    setAiWorking(true);
     claudeProxy.mutate(
       {
         data: {
-          system: "Kamu adalah content writer ahli repurposing konten Indonesia.",
-          prompt: `Ubah script berikut menjadi format ${repurposePlatform}. Sesuaikan panjang, struktur, dan gaya dengan platform tersebut.\n\nSCRIPT ASLI:\n${script}`,
+          system: "Kamu adalah content writer ahli adaptasi konten Indonesia.",
+          prompt: `Sesuaikan script berikut untuk platform ${adaptPlatform} dengan format ${adaptJenis}. Pertahankan pesan utama, sesuaikan struktur, panjang, dan gaya dengan platform tujuan.\n\nSCRIPT ASLI:\n${selectedSaved.script}`,
           model: config.aiModel,
         }
       },
       {
         onSuccess: (data) => {
-          setEditScript(data.result);
-          setRepurposeOpen(false);
-          setTab("new");
-          toast({ title: "Script siap diedit" });
+          setDraft({
+            ...selectedSaved,
+            script: data.result,
+            platform: adaptPlatform,
+            jenisKonten: adaptJenis,
+            skorViralitas: null,
+            tribeTrigger: 0,
+            tribeResonance: 0,
+            tribeImpact: 0,
+            tribeBehavior: 0,
+            tribeEngagement: 0,
+            analisisAI: "",
+            rekomendasi: "",
+            captionTikTok: "",
+            captionInstagram: "",
+            captionYTShorts: "",
+          });
+          setAdaptOpen(false);
+          setShowAnalysis(false);
+          setTab("editor");
+          setAiWorking(false);
+          toast({ title: "Script adaptasi siap diedit" });
         },
-        onError: () => toast({ title: "Gagal repurpose", variant: "destructive" }),
+        onError: () => {
+          toast({ title: "Gagal adaptasi", variant: "destructive" });
+          setAiWorking(false);
+        },
       }
     );
   };
 
-  const rewrite = () => {
-    if (!selectedPage) return;
-    const script = selectedPage.properties?.Script?.rich_text?.[0]?.plain_text ?? "";
+  const rewriteScript = () => {
+    if (!selectedSaved) return;
+    setAiWorking(true);
     claudeProxy.mutate(
       {
         data: {
           system: "Kamu adalah penulis naskah konten Indonesia yang versatile.",
-          prompt: `Tulis ulang script berikut dengan tone "${rewriteTone}". Pertahankan inti pesan, tapi ubah gaya dan pendekatan.\n\nSCRIPT ASLI:\n${script}`,
+          prompt: `Tulis ulang script berikut dengan tone "${rewriteTone}". Pertahankan inti pesan dan esensi konten, tapi ubah total gaya, pendekatan, dan cara penyampaiannya.\n\nSCRIPT ASLI:\n${selectedSaved.script}`,
           model: config.aiModel,
         }
       },
       {
         onSuccess: (data) => {
-          setEditScript(data.result);
+          setDraft({
+            ...selectedSaved,
+            script: data.result,
+            tone: rewriteTone,
+            skorViralitas: null,
+            tribeTrigger: 0,
+            tribeResonance: 0,
+            tribeImpact: 0,
+            tribeBehavior: 0,
+            tribeEngagement: 0,
+            analisisAI: "",
+            rekomendasi: "",
+            captionTikTok: "",
+            captionInstagram: "",
+            captionYTShorts: "",
+          });
           setRewriteOpen(false);
-          setTab("new");
-          toast({ title: "Script siap diedit" });
+          setShowAnalysis(false);
+          setTab("editor");
+          setAiWorking(false);
+          toast({ title: "Script tulis ulang siap diedit" });
         },
-        onError: () => toast({ title: "Gagal rewrite", variant: "destructive" }),
+        onError: () => {
+          toast({ title: "Gagal tulis ulang", variant: "destructive" });
+          setAiWorking(false);
+        },
       }
     );
+  };
+
+  const openSavedForEdit = (s: SavedScript) => {
+    setDraft({ ...s });
+    setShowAnalysis(!!s.skorViralitas);
+    setTab("editor");
   };
 
   return (
@@ -253,123 +329,323 @@ export default function EditorPage() {
       </div>
 
       <div className="flex gap-2 bg-muted rounded-xl p-1">
-        {(["new", "saved"] as const).map((t) => (
+        {(["editor", "saved"] as const).map((t) => (
           <button
             key={t}
             data-testid={`tab-${t}`}
             onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-            }`}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
           >
-            {t === "new" ? "Generate Baru" : "Script Tersimpan"}
+            {t === "editor" ? "Editor" : `Script Tersimpan${savedScripts.length > 0 ? ` (${savedScripts.length})` : ""}`}
           </button>
         ))}
       </div>
 
-      {tab === "new" ? (
-        <div className="space-y-4">
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-            <Textarea
-              data-testid="editor-textarea"
-              value={editScript}
-              onChange={(e) => setEditScript(e.target.value)}
-              placeholder="Paste atau ketik script di sini untuk diedit dan dianalisis..."
-              className="min-h-52 text-sm resize-none"
-            />
-          </div>
-          <TribeAnalysis script={editScript} model={config.aiModel} />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-                  <Input
-                    data-testid="input-search-scripts"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cari script..."
-                    className="pl-9 h-9"
-                  />
-                </div>
-                <Select value={filterTone} onValueChange={setFilterTone}>
-                  <SelectTrigger className="w-32 h-9" data-testid="select-filter-tone">
-                    <SelectValue placeholder="Tone" />
+      {tab === "editor" && (
+        <div className="space-y-4 pb-4">
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Detail Konten</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Topik</Label>
+                <Input
+                  data-testid="input-topik-editor"
+                  value={draft.topik}
+                  onChange={(e) => setDraft({ topik: e.target.value })}
+                  placeholder="Topik konten"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tanggal Publish</Label>
+                <Input
+                  type="date"
+                  data-testid="input-tanggal"
+                  value={draft.tanggal}
+                  onChange={(e) => setDraft({ tanggal: e.target.value })}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Judul Konten</Label>
+              <Input
+                data-testid="input-judul-editor"
+                value={draft.judul}
+                onChange={(e) => setDraft({ judul: e.target.value })}
+                placeholder="Judul konten"
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Platform</Label>
+                <Select value={draft.platform} onValueChange={(v) => setDraft({ platform: v })}>
+                  <SelectTrigger className="h-9 text-sm" data-testid="select-platform-editor">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Semua Tone</SelectItem>
+                    {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Jenis</Label>
+                <Select value={draft.jenisKonten} onValueChange={(v) => setDraft({ jenisKonten: v })}>
+                  <SelectTrigger className="h-9 text-sm" data-testid="select-jenis-editor">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {JENIS_KONTEN.map((j) => <SelectItem key={j} value={j}>{j}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tone</Label>
+                <Select value={draft.tone} onValueChange={(v) => setDraft({ tone: v })}>
+                  <SelectTrigger className="h-9 text-sm" data-testid="select-tone-editor">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
                     {TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
 
-              {!loadedPages ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Naskah Script</p>
+              <CopyButton text={draft.script} label="Script" />
+            </div>
+            <Textarea
+              data-testid="editor-textarea"
+              value={draft.script}
+              onChange={(e) => setDraft({ script: e.target.value })}
+              placeholder="Script kamu akan muncul di sini setelah di-generate. Kamu juga bisa langsung mengetik atau menempel script..."
+              className="min-h-56 text-sm resize-none font-mono"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              data-testid="button-analyze-tribe"
+              variant="outline"
+              onClick={analyzeTribe}
+              disabled={analyzing || !draft.script.trim()}
+              className="flex-1"
+            >
+              {analyzing
+                ? <><RefreshCw size={14} className="mr-2 animate-spin" />Menganalisis...</>
+                : <><BarChart2 size={14} className="mr-2" />Analisis TRIBE</>
+              }
+            </Button>
+            <Button
+              data-testid="button-save-script"
+              onClick={saveToNotion}
+              disabled={saving || !draft.script.trim()}
+              className="flex-1"
+            >
+              {saving
+                ? <><RefreshCw size={14} className="mr-2 animate-spin" />Menyimpan...</>
+                : <><Save size={14} className="mr-2" />Simpan ke Notion</>
+              }
+            </Button>
+          </div>
+
+          {(showAnalysis && draft.skorViralitas !== null) && (
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+              <button
+                className="w-full flex items-center justify-between"
+                onClick={() => setShowAnalysis((v) => !v)}
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles size={15} className="text-primary" />
+                  <span className="font-semibold text-sm">Analisis TRIBE v2</span>
                 </div>
-              ) : filteredPages.length === 0 ? (
-                <div className="bg-muted/50 rounded-2xl p-5 text-center">
-                  <p className="text-sm text-muted-foreground">Tidak ada script ditemukan.</p>
+                {showAnalysis ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+              </button>
+
+              <div className="text-center py-1">
+                <div className={`text-4xl font-bold ${draft.skorViralitas >= 75 ? "text-primary" : draft.skorViralitas >= 50 ? "text-secondary" : "text-accent"}`}>
+                  {Math.round(draft.skorViralitas)}
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredPages.map((page) => {
-                    const title = page.properties?.Judul?.title?.[0]?.plain_text ?? page.properties?.Name?.title?.[0]?.plain_text ?? "Tanpa Judul";
-                    const tone = page.properties?.Tone?.select?.name ?? "";
-                    const platform = page.properties?.Platform?.select?.name ?? "";
-                    return (
-                      <div
-                        key={page.id}
-                        data-testid={`saved-script-${page.id}`}
-                        className="bg-card border border-border rounded-xl p-3.5 space-y-2"
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate">{title}</div>
-                            <div className="flex gap-1.5 mt-1 flex-wrap">
-                              {tone && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{tone}</Badge>}
-                              {platform && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{platform}</Badge>}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-1.5">
-                          <Button size="sm" variant="outline" className="h-7 text-xs flex-1" data-testid={`button-edit-${page.id}`} onClick={() => loadIntoEditor(page)}>
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs flex-1" data-testid={`button-repurpose-${page.id}`} onClick={() => { setSelectedPage(page); setRepurposeOpen(true); }}>
-                            Repurpose
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs flex-1" data-testid={`button-rewrite-${page.id}`} onClick={() => { setSelectedPage(page); setRewriteOpen(true); }}>
-                            Rewrite
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="text-xs text-muted-foreground">Skor Viralitas</div>
+              </div>
+
+              <div className="space-y-2">
+                <ScoreBar label="Trigger" value={draft.tribeTrigger} />
+                <ScoreBar label="Resonance" value={draft.tribeResonance} />
+                <ScoreBar label="Impact" value={draft.tribeImpact} />
+                <ScoreBar label="Behavior" value={draft.tribeBehavior} />
+                <ScoreBar label="Engagement" value={draft.tribeEngagement} />
+              </div>
+
+              {draft.analisisAI && (
+                <div className="border-t border-border pt-3 space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Analisis AI</p>
+                  <p className="text-sm text-foreground leading-relaxed">{draft.analisisAI}</p>
                 </div>
               )}
-            </>
+
+              {draft.rekomendasi && (
+                <div className="border-t border-border pt-3 space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Rekomendasi Perbaikan</p>
+                  <ul className="space-y-1">
+                    {draft.rekomendasi.split("|").map((r, i) => (
+                      <li key={i} className="text-sm text-foreground flex gap-2">
+                        <span className="text-accent shrink-0">•</span>
+                        <span>{r.trim()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {(draft.captionTikTok || draft.captionInstagram || draft.captionYTShorts) && (
+                <div className="border-t border-border pt-3 space-y-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Caption Siap Posting</p>
+
+                  {draft.captionTikTok && (
+                    <div className="bg-muted/50 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold">TikTok</span>
+                        <CopyButton text={draft.captionTikTok} label="TikTok" />
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{draft.captionTikTok}</p>
+                    </div>
+                  )}
+
+                  {draft.captionInstagram && (
+                    <div className="bg-muted/50 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold">Instagram</span>
+                        <CopyButton text={draft.captionInstagram} label="Instagram" />
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{draft.captionInstagram}</p>
+                    </div>
+                  )}
+
+                  {draft.captionYTShorts && (
+                    <div className="bg-muted/50 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold">YouTube Shorts</span>
+                        <CopyButton text={draft.captionYTShorts} label="YT Shorts" />
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{draft.captionYTShorts}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      <Dialog open={repurposeOpen} onOpenChange={setRepurposeOpen}>
+      {tab === "saved" && (
+        <div className="space-y-3 pb-4">
+          {savedScripts.length === 0 ? (
+            <div className="bg-muted/50 rounded-2xl p-8 text-center">
+              <BookOpen size={32} className="text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm font-medium text-foreground">Belum ada script tersimpan</p>
+              <p className="text-xs text-muted-foreground mt-1">Buat dan simpan script pertamamu dari halaman Editor.</p>
+            </div>
+          ) : (
+            savedScripts.map((s) => (
+              <div
+                key={s.notionPageId}
+                data-testid={`saved-script-${s.notionPageId}`}
+                className="bg-card border border-border rounded-2xl p-4 space-y-3"
+              >
+                <div>
+                  <div className="font-semibold text-sm text-foreground">{s.judul || s.topik || "Tanpa Judul"}</div>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {s.platform && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.platform}</Badge>}
+                    {s.jenisKonten && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.jenisKonten}</Badge>}
+                    {s.tone && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.tone}</Badge>}
+                    {s.tanggal && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.tanggal}</Badge>}
+                    {s.skorViralitas !== null && (
+                      <Badge className="text-[10px] px-1.5 h-5 bg-primary/10 text-primary border-primary/20">
+                        ⚡ {Math.round(s.skorViralitas)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {s.script && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{s.script}</p>
+                )}
+
+                <div className="flex gap-1.5 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-8 text-xs"
+                    data-testid={`button-edit-saved-${s.notionPageId}`}
+                    onClick={() => openSavedForEdit(s)}
+                  >
+                    <Edit3 size={12} className="mr-1" />Buka Editor
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-8 text-xs"
+                    data-testid={`button-adapt-${s.notionPageId}`}
+                    onClick={() => { setSelectedSaved(s); setAdaptPlatform(s.platform); setAdaptOpen(true); }}
+                  >
+                    <RefreshCw size={12} className="mr-1" />Adaptasi
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-8 text-xs"
+                    data-testid={`button-rewrite-${s.notionPageId}`}
+                    onClick={() => { setSelectedSaved(s); setRewriteOpen(true); }}
+                  >
+                    <Sparkles size={12} className="mr-1" />Tulis Ulang
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      <Dialog open={adaptOpen} onOpenChange={setAdaptOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Repurpose Format</DialogTitle>
+            <DialogTitle>Adaptasi Script</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <Select value={repurposePlatform} onValueChange={setRepurposePlatform}>
-              <SelectTrigger data-testid="select-repurpose-platform">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button className="w-full" data-testid="button-confirm-repurpose" onClick={repurpose} disabled={claudeProxy.isPending}>
-              {claudeProxy.isPending ? <><RefreshCw size={14} className="mr-2 animate-spin" />Mengubah...</> : "Ubah Format"}
+          <p className="text-sm text-muted-foreground -mt-2">Sesuaikan script untuk platform dan format baru.</p>
+          <div className="space-y-4 pt-1">
+            <div className="space-y-2">
+              <Label>Platform Tujuan</Label>
+              <Select value={adaptPlatform} onValueChange={setAdaptPlatform}>
+                <SelectTrigger data-testid="select-adapt-platform">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Jenis Konten Tujuan</Label>
+              <Select value={adaptJenis} onValueChange={setAdaptJenis}>
+                <SelectTrigger data-testid="select-adapt-jenis">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {JENIS_KONTEN.map((j) => <SelectItem key={j} value={j}>{j}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" data-testid="button-confirm-adapt" onClick={adaptScript} disabled={aiWorking}>
+              {aiWorking ? <><RefreshCw size={14} className="mr-2 animate-spin" />Mengadaptasi...</> : "Adaptasi Script"}
             </Button>
           </div>
         </DialogContent>
@@ -378,19 +654,23 @@ export default function EditorPage() {
       <Dialog open={rewriteOpen} onOpenChange={setRewriteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Bangkitkan Naskah Baru</DialogTitle>
+            <DialogTitle>Tulis Ulang Script</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <Select value={rewriteTone} onValueChange={setRewriteTone}>
-              <SelectTrigger data-testid="select-rewrite-tone">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button className="w-full" data-testid="button-confirm-rewrite" onClick={rewrite} disabled={claudeProxy.isPending}>
-              {claudeProxy.isPending ? <><RefreshCw size={14} className="mr-2 animate-spin" />Menulis ulang...</> : "Tulis Ulang"}
+          <p className="text-sm text-muted-foreground -mt-2">Gaya baru, esensi tetap sama.</p>
+          <div className="space-y-4 pt-1">
+            <div className="space-y-2">
+              <Label>Tone Baru</Label>
+              <Select value={rewriteTone} onValueChange={setRewriteTone}>
+                <SelectTrigger data-testid="select-rewrite-tone">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" data-testid="button-confirm-rewrite" onClick={rewriteScript} disabled={aiWorking}>
+              {aiWorking ? <><RefreshCw size={14} className="mr-2 animate-spin" />Menulis ulang...</> : "Tulis Ulang Script"}
             </Button>
           </div>
         </DialogContent>

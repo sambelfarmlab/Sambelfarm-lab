@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
+import { useDraft } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, Sparkles, RefreshCw } from "lucide-react";
+import { Lightbulb, Sparkles, RefreshCw, ArrowRight } from "lucide-react";
 
 interface Idea {
   judul: string;
@@ -21,6 +23,8 @@ export default function BrainstormPage() {
   const claudeProxy = useClaudeProxy();
   const { toast } = useToast();
   const config = getConfig();
+  const { setDraft } = useDraft();
+  const [, setLocation] = useLocation();
 
   const generate = () => {
     if (!keyword.trim()) return;
@@ -67,6 +71,16 @@ Pastikan semua dalam Bahasa Indonesia yang natural dan engaging.${config.customP
         },
       }
     );
+  };
+
+  const selectIdea = (idea: Idea) => {
+    setDraft({
+      topik: keyword,
+      judul: idea.judul,
+      konsep: idea.angle,
+      inputTambahan: `Hook: ${idea.hook}`,
+    });
+    setLocation("/generator");
   };
 
   return (
@@ -121,17 +135,20 @@ Pastikan semua dalam Bahasa Indonesia yang natural dan engaging.${config.customP
 
       {!claudeProxy.isPending && ideas.length > 0 && (
         <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Klik ide untuk langsung buat script →</p>
           {ideas.map((idea, i) => (
-            <div
+            <button
               key={i}
               data-testid={`idea-card-${i}`}
-              className="bg-card border border-border rounded-2xl p-4 hover:border-primary/40 transition-colors"
+              onClick={() => selectIdea(idea)}
+              className="w-full bg-card border border-border rounded-2xl p-4 text-left hover:border-primary/50 hover:shadow-sm transition-all group"
             >
               <div className="flex items-start gap-2 mb-2">
                 <Badge className="shrink-0 bg-primary/10 text-primary border-primary/20 text-[10px] px-1.5 h-5">
                   Ide {i + 1}
                 </Badge>
-                <h3 className="font-semibold text-sm text-foreground leading-snug">{idea.judul}</h3>
+                <h3 className="font-semibold text-sm text-foreground leading-snug flex-1">{idea.judul}</h3>
+                <ArrowRight size={14} className="text-muted-foreground group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
               </div>
               <div className="space-y-1.5">
                 <div>
@@ -143,7 +160,7 @@ Pastikan semua dalam Bahasa Indonesia yang natural dan engaging.${config.customP
                   <p className="text-sm text-muted-foreground mt-0.5">{idea.angle}</p>
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

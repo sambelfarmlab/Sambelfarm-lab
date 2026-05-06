@@ -1,0 +1,26 @@
+Tolong perbaiki dan kembalikan workflow utama aplikasi ini. Desain UI yang sudah bagus (SaaS look) tetap dipertahankan, tetapi navigasi, state, dan logika aplikasinya WAJIB mengikuti 3 urutan workflow di bawah ini secara persis. 
+
+[PROPERTI DATABASE/STATE YANG WAJIB ADA]
+Pastikan data yang disiapkan untuk dikirim ke Notion memiliki properti ini:
+- Utama: Topik, Judul, Platform, Jenis Konten, Tone, Tanggal, Script, Status Revisi.
+- Analisis: Skor Viralitas, Analisis AI, Rekomendasi.
+- Caption (Baru): Caption TikTok, Caption Instagram, Caption YT Shorts.
+
+[WORKFLOW 1: Ideation & Generator]
+- Fitur pencarian ide via keyword: Menghasilkan 5 ide. Jika salah satu ide diklik, otomatis diarahkan ke Form Script Generator dengan data ide yang terbawa.
+- Form Script Generator bisa juga diisi manual. Isi form wajib mencakup: Topik, Judul Konten, Konsep/POV, Platform (Dropdown), Jenis Konten (Dropdown), Tone (Dropdown), dan Input Tambahan.
+- Di bagian bawah form, sediakan tombol "Generate Script".
+
+[WORKFLOW 2: Editor & Analisis]
+- Setelah tombol "Generate Script" diklik dan script selesai dibuat, otomatis navigasi/pindah ke halaman "Editor".
+- Di halaman Editor: Tampilkan kembali form detail (agar bisa disunting, termasuk input Tanggal) dan textarea untuk menyunting hasil script.
+- Tambahkan tombol "Analisis Tribe". Jika diklik: AI menganalisis script, mengeluarkan Skor Viralitas, Rekomendasi perbaikan, serta men-generate Caption spesifik untuk TikTok, Instagram, dan YT Shorts. Output analisis harus rapi dan to-the-point.
+- Tambahkan tombol "Simpan". Jika diklik: Data dikirim ke Notion, data masuk ke daftar "Script Tersimpan" di lokal UI, dan halaman/form otomatis ter-refresh (bersih).
+
+[WORKFLOW 3: Script Tersimpan]
+- Pada halaman/daftar Script Tersimpan, pengguna dapat membuka kembali script untuk mengedit detail (Notion) dan teks script-nya.
+- Wajib sediakan 2 fitur (tombol) aksi pada script yang tersimpan:
+  1. "Adaptasi Script": Menginstruksikan AI untuk menyesuaikan script dengan jenis konten/platform tujuan yang baru.
+  2. "Tulis Ulang": Menginstruksikan AI untuk menulis ulang script dengan Tone baru, namun isi/esensi tetap sama.
+
+Catatan Penting: ABAIKAN perbaikan atau fitur Kalender untuk saat ini. Fokus 100% selesaikan 3 workflow ini terlebih dahulu tanpa merusak desain UI Tailwind yang sudah ada.

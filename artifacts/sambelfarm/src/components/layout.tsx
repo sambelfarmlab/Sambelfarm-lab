@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Lightbulb, FileText, Edit3, Calendar, Settings } from "lucide-react";
+import { Home, Lightbulb, FileText, Edit3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -7,7 +7,6 @@ const navItems = [
   { path: "/brainstorm", icon: Lightbulb, label: "Ide" },
   { path: "/generator", icon: FileText, label: "Generator" },
   { path: "/editor", icon: Edit3, label: "Editor" },
-  { path: "/calendar", icon: Calendar, label: "Kalender" },
   { path: "/settings", icon: Settings, label: "Pengaturan" },
 ];
 

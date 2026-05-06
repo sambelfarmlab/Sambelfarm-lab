@@ -27,7 +27,7 @@ An AI-powered content creation tool for SambelFarm — brainstorm ideas, generat
 - `lib/api-zod/src/generated/api.ts` — Generated Zod schemas (used server-side)
 - `artifacts/api-server/src/routes/` — auth.ts, claude.ts, notion.ts, health.ts
 - `artifacts/sambelfarm/src/pages/` — login, home, brainstorm, generator, editor, calendar, settings
-- `artifacts/sambelfarm/src/lib/` — auth.tsx (context), config.ts (localStorage), utils.ts
+- `artifacts/sambelfarm/src/lib/` — auth.tsx (context), config.ts (localStorage), draft.tsx (shared workflow state), utils.ts
 - `artifacts/sambelfarm/src/components/layout.tsx` — bottom nav bar layout
 
 ## Architecture decisions
@@ -42,11 +42,11 @@ An AI-powered content creation tool for SambelFarm — brainstorm ideas, generat
 
 - **Login**: Password-based auth (HMAC token)
 - **Home**: Dashboard with recent scripts from Notion + quick nav
-- **Brainstorm**: Enter keyword → Claude generates 5 content ideas with hook + angle
-- **Generator**: Pick Jenis Konten (Reels/Stories/Feed/Carousel) + Tone → Claude generates full script
-- **Editor**: Edit scripts + TRIBE v2 viral analysis (Trigger, Resonance, Impact, Behavior, Engagement). Browse/search Notion scripts. Repurpose format or rewrite with new tone via Claude.
-- **Calendar**: Monthly calendar with Notion-backed content schedule, color-coded by status
-- **Settings**: AI model, DNA Style, Custom Prompt — saved to localStorage. Notion DB ID managed via `NOTION_DB_ID` Replit Secret (no UI input).
+- **[WORKFLOW 1] Brainstorm → Generator**: Enter keyword → 5 clickable ideas (judul/hook/angle). Click an idea → auto-fill Generator form (Topik, Judul, Konsep/POV, Platform, Jenis Konten, Tone, Input Tambahan). "Generate Script" → Claude generates script → auto-navigate to Editor.
+- **[WORKFLOW 2] Editor**: Full form (all detail fields + Tanggal), script textarea. "Analisis TRIBE" → Claude scores T/R/I/B/E (0-100), Skor Viralitas, Analisis AI, Rekomendasi, Caption TikTok/Instagram/YT Shorts. "Simpan" → POST to Notion (all 13 properties) → added to local list → form reset.
+- **[WORKFLOW 3] Script Tersimpan** (tab in Editor): List of saved scripts. "Adaptasi Script" → AI adapts for new platform/jenis → back to Editor. "Tulis Ulang" → AI rewrites with new tone → back to Editor.
+- **Settings**: AI model, DNA Style, Custom Prompt — saved to localStorage.
+- **Calendar**: Monthly view (Notion-backed). De-prioritized for now.
 
 ## User preferences
 

@@ -1,19 +1,25 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
+import { useDraft } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Sparkles, RefreshCw, Copy, Check } from "lucide-react";
+import { FileText, Sparkles, RefreshCw } from "lucide-react";
+
+const PLATFORMS = ["TikTok", "Instagram Reels", "Instagram Stories", "Instagram Feed", "YouTube Shorts", "YouTube"];
 
 const JENIS_KONTEN = [
-  { value: "Reels", label: "Reels / TikTok" },
+  { value: "Reels", label: "Reels / Short Video" },
   { value: "Stories", label: "Stories" },
   { value: "Feed Post", label: "Feed Post" },
   { value: "Carousel", label: "Carousel" },
+  { value: "Tutorial", label: "Tutorial" },
+  { value: "Behind the Scenes", label: "Behind the Scenes" },
 ];
 
 const TONES = [
@@ -25,17 +31,23 @@ const TONES = [
 ];
 
 export default function GeneratorPage() {
-  const [topik, setTopik] = useState("");
-  const [jenisKonten, setJenisKonten] = useState("Reels");
-  const [tone, setTone] = useState("Storytelling");
-  const [script, setScript] = useState("");
-  const [copied, setCopied] = useState(false);
+  const { draft, setDraft } = useDraft();
   const claudeProxy = useClaudeProxy();
   const { toast } = useToast();
   const config = getConfig();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!draft.jenisKonten) setDraft({ jenisKonten: "Reels" });
+    if (!draft.tone) setDraft({ tone: "Storytelling" });
+    if (!draft.platform) setDraft({ platform: "TikTok" });
+  }, []);
 
   const generate = () => {
-    if (!topik.trim()) return;
+    if (!draft.topik.trim()) {
+      toast({ title: "Topik wajib diisi", variant: "destructive" });
+      return;
+    }
 
     const systemPrompt = `Kamu adalah penulis naskah konten pertanian dan kuliner Indonesia kelas dunia. Kamu ahli membuat script viral yang autentik dan engaging untuk brand Sambelfarm.
 
@@ -47,20 +59,25 @@ Gaya penulisan:
 - Ritme yang enak diikuti
 - Bahasa Indonesia yang dekat dengan keseharian`;
 
-    const prompt = `Buat script ${jenisKonten} dengan tone "${tone}" untuk topik: "${topik}"
+    const prompt = `Buat script ${draft.jenisKonten} untuk platform ${draft.platform} dengan tone "${draft.tone}".
+
+Topik: ${draft.topik}
+${draft.judul ? `Judul: ${draft.judul}` : ""}
+${draft.konsep ? `Konsep/POV: ${draft.konsep}` : ""}
+${draft.inputTambahan ? `Catatan tambahan: ${draft.inputTambahan}` : ""}
 
 Struktur script:
 1. HOOK (3-5 detik pertama — wajib bikin penonton berhenti scroll)
 2. BODY (konten utama — informatif, mengalir)
 3. CTA (ajakan yang natural, tidak memaksa)
 
-${jenisKonten === "Carousel" ? "Format sebagai slide 1, slide 2, dst." : "Format sebagai narasi yang mengalir."}
-${jenisKonten === "Stories" ? "Setiap bagian untuk 1 stories (max 15 detik). Gunakan format: STORIES 1:, STORIES 2: dst." : ""}
+${draft.jenisKonten === "Carousel" ? "Format sebagai SLIDE 1:, SLIDE 2:, dst." : "Format sebagai narasi yang mengalir."}
+${draft.jenisKonten === "Stories" ? "Setiap bagian untuk 1 stories (max 15 detik). Gunakan format: STORIES 1:, STORIES 2: dst." : ""}
 
-Tambahkan:
-- Estimasi durasi/jumlah slide
+Tambahkan di bagian bawah:
+- Estimasi durasi / jumlah slide
 - 3-5 hashtag rekomendasi
-- Saran visual/B-roll
+- Saran visual/B-roll singkat
 
 ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
 
@@ -68,7 +85,8 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
       { data: { system: systemPrompt, prompt, model: config.aiModel } },
       {
         onSuccess: (data) => {
-          setScript(data.result);
+          setDraft({ script: data.result });
+          setLocation("/editor");
         },
         onError: () => {
           toast({ title: "Gagal generate script", description: "Coba lagi beberapa saat.", variant: "destructive" });
@@ -77,39 +95,72 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
     );
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(script);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
-    <div className="p-4 space-y-5">
+    <div className="p-4 space-y-5 pb-8">
       <div className="pt-2">
         <div className="flex items-center gap-2 mb-0.5">
           <FileText size={16} className="text-primary" />
           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Generator</span>
         </div>
         <h1 className="text-xl font-bold text-foreground">Buat Script</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Generate naskah konten siap pakai</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Isi detail konten, lalu generate naskah</p>
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="topik">Topik Konten</Label>
+          <Label htmlFor="topik">
+            Topik <span className="text-accent">*</span>
+          </Label>
           <Input
             id="topik"
             data-testid="input-topik"
-            value={topik}
-            onChange={(e) => setTopik(e.target.value)}
+            value={draft.topik}
+            onChange={(e) => setDraft({ topik: e.target.value })}
             placeholder="Contoh: cara membuat sambal bawang goreng..."
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="judul">Judul Konten</Label>
+          <Input
+            id="judul"
+            data-testid="input-judul"
+            value={draft.judul}
+            onChange={(e) => setDraft({ judul: e.target.value })}
+            placeholder="Judul yang catchy (opsional)"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="konsep">Konsep / POV</Label>
+          <Textarea
+            id="konsep"
+            data-testid="textarea-konsep"
+            value={draft.konsep}
+            onChange={(e) => setDraft({ konsep: e.target.value })}
+            placeholder="Sudut pandang atau konsep unik yang ingin disampaikan..."
+            className="min-h-20 text-sm resize-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Platform</Label>
+          <Select value={draft.platform} onValueChange={(v) => setDraft({ platform: v })}>
+            <SelectTrigger data-testid="select-platform">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PLATFORMS.map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Jenis Konten</Label>
-            <Select value={jenisKonten} onValueChange={setJenisKonten}>
+            <Select value={draft.jenisKonten} onValueChange={(v) => setDraft({ jenisKonten: v })}>
               <SelectTrigger data-testid="select-jenis-konten">
                 <SelectValue />
               </SelectTrigger>
@@ -123,7 +174,7 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
 
           <div className="space-y-2">
             <Label>Tone</Label>
-            <Select value={tone} onValueChange={setTone}>
+            <Select value={draft.tone} onValueChange={(v) => setDraft({ tone: v })}>
               <SelectTrigger data-testid="select-tone">
                 <SelectValue />
               </SelectTrigger>
@@ -136,50 +187,40 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="inputTambahan">Input Tambahan</Label>
+          <Textarea
+            id="inputTambahan"
+            data-testid="textarea-input-tambahan"
+            value={draft.inputTambahan}
+            onChange={(e) => setDraft({ inputTambahan: e.target.value })}
+            placeholder="Info tambahan: lokasi, produk spesifik, poin utama yang harus disampaikan..."
+            className="min-h-20 text-sm resize-none"
+          />
+        </div>
+
         <Button
           data-testid="button-generate-script"
           onClick={generate}
-          disabled={claudeProxy.isPending || !topik.trim()}
-          className="w-full"
+          disabled={claudeProxy.isPending || !draft.topik.trim()}
+          className="w-full mt-2"
+          size="lg"
         >
           {claudeProxy.isPending ? (
-            <><RefreshCw size={16} className="mr-2 animate-spin" /> Sedang membuat...</>
+            <><RefreshCw size={16} className="mr-2 animate-spin" /> Sedang membuat script...</>
           ) : (
             <><Sparkles size={16} className="mr-2" /> Generate Script</>
           )}
         </Button>
-      </div>
 
-      {claudeProxy.isPending && (
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-2 animate-pulse">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-4 bg-muted rounded" style={{ width: `${60 + i * 8}%` }} />
-          ))}
-        </div>
-      )}
-
-      {!claudeProxy.isPending && script && (
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground">Script Generated</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              data-testid="button-copy-script"
-              onClick={handleCopy}
-              className="h-7 text-xs gap-1.5"
-            >
-              {copied ? <><Check size={13} /> Disalin</> : <><Copy size={13} /> Salin</>}
-            </Button>
+        {claudeProxy.isPending && (
+          <div className="space-y-2 pt-1 animate-pulse">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-3 bg-muted rounded" style={{ width: `${55 + i * 10}%` }} />
+            ))}
           </div>
-          <Textarea
-            data-testid="textarea-script"
-            value={script}
-            onChange={(e) => setScript(e.target.value)}
-            className="min-h-64 text-sm font-mono resize-none"
-          />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
