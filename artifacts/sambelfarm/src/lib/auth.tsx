@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
-import { fetchRemoteConfig } from "./config";
 
 interface AuthContextType {
   token: string | null;
@@ -19,14 +18,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setAuthTokenGetter(() => localStorage.getItem("sf_auth_token"));
   }, []);
-
-  // Pull server-side secrets (e.g. NOTION_DATABASE_ID) into localStorage
-  // whenever we have a valid token — on initial load and after login.
-  useEffect(() => {
-    if (token) {
-      fetchRemoteConfig(token);
-    }
-  }, [token]);
 
   const login = (newToken: string) => {
     localStorage.setItem("sf_auth_token", newToken);

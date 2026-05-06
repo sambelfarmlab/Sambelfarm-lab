@@ -16,7 +16,7 @@ router.get("/config", (req, res): void => {
   }
 
   res.json({
-    notion_database_id: process.env.NOTION_DATABASE_ID ?? null,
+    notion_database_id: process.env.NOTION_DB_ID ?? null,
   });
 });
 

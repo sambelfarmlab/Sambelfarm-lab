@@ -28,9 +28,14 @@ export default function HomePage() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!config.dbId) { setLoaded(true); return; }
     notionQuery.mutate(
-      { data: { database_id: config.dbId, page_size: 6, sorts: [{ timestamp: "last_edited_time", direction: "descending" } as unknown as Record<string, string>] } },
+      {
+        data: {
+          database_id: "",
+          page_size: 6,
+          sorts: [{ timestamp: "last_edited_time", direction: "descending" } as unknown as Record<string, string>],
+        }
+      },
       {
         onSuccess: (data) => {
           setPages((data as unknown as { results: NotionPage[] }).results ?? []);
@@ -39,7 +44,7 @@ export default function HomePage() {
         onError: () => setLoaded(true),
       }
     );
-  }, [config.dbId]);
+  }, []);
 
   const quickActions = [
     { label: "Brainstorm Ide", icon: Lightbulb, path: "/brainstorm", desc: "5 ide konten baru" },
@@ -94,14 +99,7 @@ export default function HomePage() {
           </Button>
         </div>
 
-        {!config.dbId ? (
-          <div className="bg-muted/50 rounded-2xl p-5 text-center">
-            <p className="text-sm text-muted-foreground">Hubungkan Notion di Pengaturan untuk melihat history script.</p>
-            <Button size="sm" variant="outline" className="mt-3" onClick={() => setLocation("/settings")}>
-              Buka Pengaturan
-            </Button>
-          </div>
-        ) : !loaded ? (
+        {!loaded ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-16 w-full rounded-xl" />

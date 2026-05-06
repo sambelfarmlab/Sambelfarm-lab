@@ -168,9 +168,9 @@ export default function EditorPage() {
   const config = getConfig();
 
   useEffect(() => {
-    if (tab === "saved" && !loadedPages && config.dbId) {
+    if (tab === "saved" && !loadedPages) {
       notionQuery.mutate(
-        { data: { database_id: config.dbId, page_size: 20, sorts: [{ timestamp: "last_edited_time", direction: "descending" } as unknown as Record<string, string>] } },
+        { data: { database_id: "", page_size: 20, sorts: [{ timestamp: "last_edited_time", direction: "descending" } as unknown as Record<string, string>] } },
         {
           onSuccess: (data) => {
             setPages((data as unknown as { results: NotionPage[] }).results ?? []);
@@ -180,7 +180,7 @@ export default function EditorPage() {
         }
       );
     }
-  }, [tab, config.dbId]);
+  }, [tab]);
 
   const filteredPages = pages.filter((p) => {
     const title = (p.properties?.Judul?.title?.[0]?.plain_text ?? p.properties?.Name?.title?.[0]?.plain_text ?? "").toLowerCase();
@@ -282,12 +282,7 @@ export default function EditorPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {!config.dbId ? (
-            <div className="bg-muted/50 rounded-2xl p-5 text-center">
-              <p className="text-sm text-muted-foreground">Hubungkan Notion di Pengaturan.</p>
-            </div>
-          ) : (
-            <>
+          <>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
@@ -356,7 +351,6 @@ export default function EditorPage() {
                 </div>
               )}
             </>
-          )}
         </div>
       )}
 

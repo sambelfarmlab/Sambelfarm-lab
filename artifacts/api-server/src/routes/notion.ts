@@ -6,7 +6,6 @@ import {
   NotionUpdatePageParams,
 } from "@workspace/api-zod";
 import { validateToken } from "./auth";
-import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -29,14 +28,17 @@ function requireAuth(req: import("express").Request, res: import("express").Resp
 
 function getNotionHeaders() {
   const notionKey = process.env.NOTION_API_KEY;
-  if (!notionKey) {
-    throw new Error("NOTION_API_KEY not set");
-  }
+  if (!notionKey) throw new Error("NOTION_API_KEY not set");
   return {
     Authorization: `Bearer ${notionKey}`,
     "Content-Type": "application/json",
     "Notion-Version": NOTION_VERSION,
   };
+}
+
+/** Always reads from the NOTION_DB_ID secret; falls back to client-supplied id. */
+function resolveDbId(clientSupplied: string): string | null {
+  return process.env.NOTION_DB_ID || clientSupplied || null;
 }
 
 router.post("/notion/query", async (req, res): Promise<void> => {
@@ -48,8 +50,13 @@ router.post("/notion/query", async (req, res): Promise<void> => {
     return;
   }
 
-  const { database_id, filter, sorts, page_size } = parsed.data;
+  const dbId = resolveDbId(parsed.data.database_id);
+  if (!dbId) {
+    res.status(500).json({ error: "NOTION_DB_ID tidak dikonfigurasi di server" });
+    return;
+  }
 
+  const { filter, sorts, page_size } = parsed.data;
   const body: Record<string, unknown> = {};
   if (filter) body.filter = filter;
   if (sorts) body.sorts = sorts;
@@ -64,17 +71,13 @@ router.post("/notion/query", async (req, res): Promise<void> => {
     return;
   }
 
-  const response = await fetch(
-    `${NOTION_API_BASE}/databases/${database_id}/query`,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    }
-  );
+  const response = await fetch(`${NOTION_API_BASE}/databases/${dbId}/query`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
 
   const data = await response.json() as Record<string, unknown>;
-
   if (!response.ok) {
     req.log.warn({ status: response.status, data }, "Notion query failed");
     res.status(response.status).json({ error: (data as { message?: string }).message ?? "Notion error" });
@@ -93,7 +96,13 @@ router.post("/notion/pages", async (req, res): Promise<void> => {
     return;
   }
 
-  const { database_id, properties, children } = parsed.data;
+  const dbId = resolveDbId(parsed.data.database_id);
+  if (!dbId) {
+    res.status(500).json({ error: "NOTION_DB_ID tidak dikonfigurasi di server" });
+    return;
+  }
+
+  const { properties, children } = parsed.data;
 
   let headers: ReturnType<typeof getNotionHeaders>;
   try {
@@ -105,7 +114,7 @@ router.post("/notion/pages", async (req, res): Promise<void> => {
   }
 
   const body: Record<string, unknown> = {
-    parent: { database_id },
+    parent: { database_id: dbId },
     properties,
   };
   if (children) body.children = children;
@@ -117,7 +126,6 @@ router.post("/notion/pages", async (req, res): Promise<void> => {
   });
 
   const data = await response.json() as Record<string, unknown>;
-
   if (!response.ok) {
     req.log.warn({ status: response.status, data }, "Notion create page failed");
     res.status(response.status).json({ error: (data as { message?: string }).message ?? "Notion error" });
@@ -157,17 +165,13 @@ router.patch("/notion/pages/:pageId", async (req, res): Promise<void> => {
   const body: Record<string, unknown> = { properties };
   if (children) body.children = children;
 
-  const response = await fetch(
-    `${NOTION_API_BASE}/pages/${params.data.pageId}`,
-    {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify(body),
-    }
-  );
+  const response = await fetch(`${NOTION_API_BASE}/pages/${params.data.pageId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+  });
 
   const data = await response.json() as Record<string, unknown>;
-
   if (!response.ok) {
     req.log.warn({ status: response.status, data }, "Notion update page failed");
     res.status(response.status).json({ error: (data as { message?: string }).message ?? "Notion error" });

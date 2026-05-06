@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { getConfig, saveConfig } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Save, Check, Database, Cpu, FileType, MessageSquare } from "lucide-react";
+import { Settings, Save, Check, Cpu, FileType, MessageSquare } from "lucide-react";
 
 const AI_MODELS = [
   { value: "claude-opus-4-7", label: "Claude Opus 4.7 — Terbaik, paling kreatif" },
@@ -17,7 +16,6 @@ const AI_MODELS = [
 
 export default function SettingsPage() {
   const initial = getConfig();
-  const [dbId, setDbId] = useState(initial.dbId);
   const [dnaStyle, setDnaStyle] = useState(initial.dnaStyle);
   const [customPrompt, setCustomPrompt] = useState(initial.customPrompt);
   const [aiModel, setAiModel] = useState(initial.aiModel);
@@ -25,7 +23,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   const handleSave = () => {
-    saveConfig({ dbId, dnaStyle, customPrompt, aiModel });
+    saveConfig({ dnaStyle, customPrompt, aiModel });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     toast({ title: "Pengaturan disimpan" });
@@ -43,27 +41,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-4">
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
-          <div className="flex items-center gap-2 pb-1 border-b border-border">
-            <Database size={14} className="text-muted-foreground" />
-            <span className="text-sm font-semibold">Notion</span>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="dbId">Database ID</Label>
-            <Input
-              id="dbId"
-              data-testid="input-notion-db-id"
-              value={dbId}
-              onChange={(e) => setDbId(e.target.value)}
-              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Temukan di URL database Notion kamu. Format: 32 karakter hex.
-            </p>
-          </div>
-        </div>
-
         <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-2 pb-1 border-b border-border">
             <Cpu size={14} className="text-muted-foreground" />

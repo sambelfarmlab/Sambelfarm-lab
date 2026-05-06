@@ -35,7 +35,7 @@ An AI-powered content creation tool for SambelFarm — brainstorm ideas, generat
 - **Stateless HMAC auth**: token = HMAC-SHA256(SESSION_SECRET, ADMIN_PASSWORD). No DB or session store needed.
 - **Auth token via `setAuthTokenGetter`**: registered on app mount in AuthProvider, auto-injects `Authorization: Bearer` header on every API call via `customFetch`.
 - **Notion proxied server-side**: NOTION_API_KEY never exposed to browser; all Notion calls go through `/api/notion/*`.
-- **Config in localStorage**: DNA style, custom prompt, Notion DB ID, AI model choice stored as `sf_config` JSON.
+- **Config in localStorage**: DNA style, custom prompt, AI model choice stored as `sf_config` JSON. Notion DB ID is NOT stored client-side — read exclusively from `NOTION_DB_ID` server secret.
 - **Claude model selectable**: 4 models exposed in Settings; all routes validate against allowlist.
 
 ## Product
@@ -46,7 +46,7 @@ An AI-powered content creation tool for SambelFarm — brainstorm ideas, generat
 - **Generator**: Pick Jenis Konten (Reels/Stories/Feed/Carousel) + Tone → Claude generates full script
 - **Editor**: Edit scripts + TRIBE v2 viral analysis (Trigger, Resonance, Impact, Behavior, Engagement). Browse/search Notion scripts. Repurpose format or rewrite with new tone via Claude.
 - **Calendar**: Monthly calendar with Notion-backed content schedule, color-coded by status
-- **Settings**: Notion DB ID, AI model, DNA Style, Custom Prompt — all saved to localStorage
+- **Settings**: AI model, DNA Style, Custom Prompt — saved to localStorage. Notion DB ID managed via `NOTION_DB_ID` Replit Secret (no UI input).
 
 ## User preferences
 
