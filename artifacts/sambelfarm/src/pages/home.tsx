@@ -11,6 +11,7 @@ import { SwipeableItem } from "@/components/swipeable-item";
 import { downloadScriptPDF } from "@/lib/pdf";
 import { useToast } from "@/hooks/use-toast";
 import { Lightbulb, FileText, Edit3, Calendar, LogOut, Leaf, FileDown, RefreshCw, Trash2, CalendarDays } from "lucide-react";
+import { useDraft } from "@/lib/draft";
 
 interface NotionPage {
   id: string;
@@ -36,6 +37,30 @@ function getJudul(page: NotionPage) { return page.properties?.Judul?.rich_text?.
 function getSelect(page: NotionPage, prop: string) { return page.properties?.[prop]?.select?.name ?? ""; }
 function getDate(page: NotionPage, prop: string) { return page.properties?.[prop]?.date?.start ?? ""; }
 function getRichText(page: NotionPage, prop: string) { return page.properties?.[prop]?.rich_text?.[0]?.plain_text ?? ""; }
+function getNumber(page: NotionPage, prop: string): number | null {
+  const v = page.properties?.[prop]?.number; return v !== undefined ? v : null;
+}
+
+function pageToPartialDraft(page: NotionPage) {
+  return {
+    topik: getTitle(page),
+    judul: getJudul(page),
+    platform: getSelect(page, "Platform") || "TikTok",
+    jenisKonten: getSelect(page, "Jenis Konten") || "Reels",
+    tone: getSelect(page, "Tone") || "Storytelling",
+    tanggal: getDate(page, "Tanggal"),
+    script: getRichText(page, "Script"),
+    skorViralitas: getNumber(page, "Skor Viralitas"),
+    analisisAI: getRichText(page, "Analisis AI"),
+    rekomendasi: getRichText(page, "Rekomendasi"),
+    captionTikTok: getRichText(page, "Caption TikTok"),
+    captionInstagram: getRichText(page, "Caption Instagram"),
+    captionYTShorts: getRichText(page, "Caption YT Shorts"),
+    tribeTrigger: 0, tribeResonance: 0, tribeImpact: 0,
+    tribeBehavior: 0, tribeEngagement: 0,
+    inputTambahan: "", konsep: "",
+  };
+}
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -76,6 +101,7 @@ export default function HomePage() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
   const { toast } = useToast();
+  const { setDraft } = useDraft();
   const notionQuery = useNotionQuery();
   const notionUpdate = useNotionUpdatePage();
   const notionDelete = useNotionDeletePage();
@@ -284,7 +310,10 @@ export default function HomePage() {
                   <div
                     data-testid={`script-card-${page.id}`}
                     className="bg-card border border-border rounded-xl p-3.5 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
-                    onClick={() => setLocation("/editor")}
+                    onClick={() => {
+                      setDraft(pageToPartialDraft(page));
+                      setLocation("/editor");
+                    }}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm text-foreground truncate">{title}</div>

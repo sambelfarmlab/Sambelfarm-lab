@@ -628,9 +628,7 @@ Format respons sebagai JSON (tanpa markdown code block):
                         </div>
                       </div>
 
-                      {scriptPreview && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{scriptPreview}</p>
-                      )}
+
 
                       <div className="flex gap-1.5 pt-1">
                         <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" data-testid={`button-edit-saved-${page.id}`}
