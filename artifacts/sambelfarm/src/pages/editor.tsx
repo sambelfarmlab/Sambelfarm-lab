@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion, useSpring, useTransform, animate } from "framer-motion";
 import { useNotionCreatePage, useNotionQuery, useNotionUpdatePage, useNotionDeletePage, useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
 import { useDraft, type Draft } from "@/lib/draft";
@@ -56,8 +57,11 @@ function pageToPartialDraft(page: NotionPage): Partial<Draft> {
     captionTikTok: getRichText(page, "Caption TikTok"),
     captionInstagram: getRichText(page, "Caption Instagram"),
     captionYTShorts: getRichText(page, "Caption YT Shorts"),
-    tribeTrigger: 0, tribeResonance: 0, tribeImpact: 0,
-    tribeBehavior: 0, tribeEngagement: 0,
+    tribeTrigger: getNumber(page, "TRIBE_Trigger") || 0,
+    tribeResonance: getNumber(page, "TRIBE_Resonance") || 0,
+    tribeImpact: getNumber(page, "TRIBE_Impact") || 0,
+    tribeBehavior: getNumber(page, "TRIBE_Behavior") || 0,
+    tribeEngagement: getNumber(page, "TRIBE_Engagement") || 0,
     inputTambahan: "", konsep: "",
   };
 }
@@ -106,13 +110,38 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const color = value >= 75 ? "bg-primary" : value >= 50 ? "bg-secondary" : "bg-accent";
   const textColor = value >= 75 ? "text-primary" : value >= 50 ? "text-secondary" : "text-accent";
+  
+  // Animasi angka count-up
+  const count = useSpring(0, { stiffness: 60, damping: 20 });
+  const displayValue = useTransform(count, (latest) => Math.round(latest));
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    count.set(value);
+  }, [value, count]);
+
+  useEffect(() => {
+    return displayValue.on("change", (latest) => {
+      if (textRef.current) {
+        textRef.current.textContent = latest.toString();
+      }
+    });
+  }, [displayValue]);
+
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-muted-foreground w-24 shrink-0">{label}</span>
       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${value}%` }} />
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className={`h-full rounded-full ${color}`} 
+        />
       </div>
-      <span className={`text-xs font-semibold w-7 text-right ${textColor}`}>{value}</span>
+      <span className={`text-xs font-semibold w-7 text-right ${textColor}`}>
+        <span ref={textRef}>0</span>
+      </span>
     </div>
   );
 }
@@ -313,6 +342,11 @@ Format respons sebagai JSON (tanpa markdown code block):
 
     if (draft.tanggal) properties["Tanggal"] = { date: { start: draft.tanggal } };
     if (draft.skorViralitas !== null) properties["Skor Viralitas"] = { number: draft.skorViralitas };
+    if (draft.tribeTrigger !== undefined) properties["TRIBE_Trigger"] = { number: draft.tribeTrigger };
+    if (draft.tribeResonance !== undefined) properties["TRIBE_Resonance"] = { number: draft.tribeResonance };
+    if (draft.tribeImpact !== undefined) properties["TRIBE_Impact"] = { number: draft.tribeImpact };
+    if (draft.tribeBehavior !== undefined) properties["TRIBE_Behavior"] = { number: draft.tribeBehavior };
+    if (draft.tribeEngagement !== undefined) properties["TRIBE_Engagement"] = { number: draft.tribeEngagement };
     if (draft.analisisAI) properties["Analisis AI"] = { rich_text: [{ text: { content: truncate(draft.analisisAI) } }] };
     if (draft.rekomendasi) properties["Rekomendasi"] = { rich_text: [{ text: { content: truncate(draft.rekomendasi) } }] };
     if (draft.captionTikTok) properties["Caption TikTok"] = { rich_text: [{ text: { content: truncate(draft.captionTikTok) } }] };
