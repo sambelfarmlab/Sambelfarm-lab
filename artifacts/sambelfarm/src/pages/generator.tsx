@@ -117,7 +117,6 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
             value={draft.topik}
             onChange={(e) => setDraft({ topik: e.target.value })}
             placeholder="Contoh: cara membuat sambal bawang goreng..."
-            className="h-9 text-sm"
           />
         </div>
 
@@ -129,7 +128,6 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
             value={draft.judul}
             onChange={(e) => setDraft({ judul: e.target.value })}
             placeholder="Judul yang catchy (opsional)"
-            className="h-9 text-sm"
           />
         </div>
 
@@ -148,7 +146,7 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
         <div className="space-y-2">
           <Label>Platform</Label>
           <Select value={draft.platform} onValueChange={(v) => setDraft({ platform: v })}>
-            <SelectTrigger data-testid="select-platform" className="h-9 text-sm">
+            <SelectTrigger data-testid="select-platform">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -163,7 +161,7 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
           <div className="space-y-2">
             <Label>Jenis Konten</Label>
             <Select value={draft.jenisKonten} onValueChange={(v) => setDraft({ jenisKonten: v })}>
-              <SelectTrigger data-testid="select-jenis-konten" className="h-9 text-sm">
+              <SelectTrigger data-testid="select-jenis-konten">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -177,7 +175,7 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
           <div className="space-y-2">
             <Label>Tone</Label>
             <Select value={draft.tone} onValueChange={(v) => setDraft({ tone: v })}>
-              <SelectTrigger data-testid="select-tone" className="h-9 text-sm">
+              <SelectTrigger data-testid="select-tone">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

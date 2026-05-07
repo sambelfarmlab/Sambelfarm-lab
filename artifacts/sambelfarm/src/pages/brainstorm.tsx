@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Lightbulb, Sparkles, RefreshCw, ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
 
 interface Idea {
   judul: string;
@@ -135,29 +134,11 @@ Pastikan semua dalam Bahasa Indonesia yang natural dan engaging.${config.customP
       )}
 
       {!claudeProxy.isPending && ideas.length > 0 && (
-        <motion.div 
-          className="space-y-3"
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: {
-                staggerChildren: 0.1
-              }
-            }
-          }}
-        >
+        <div className="space-y-3">
           <p className="text-xs text-muted-foreground">Klik ide untuk langsung buat script →</p>
           {ideas.map((idea, i) => (
-            <motion.button
+            <button
               key={i}
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                show: { opacity: 1, y: 0 }
-              }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
               data-testid={`idea-card-${i}`}
               onClick={() => selectIdea(idea)}
               className="w-full bg-card border border-border rounded-2xl p-4 text-left hover:border-primary/50 hover:shadow-sm transition-all group"
@@ -179,9 +160,9 @@ Pastikan semua dalam Bahasa Indonesia yang natural dan engaging.${config.customP
                   <p className="text-sm text-muted-foreground mt-0.5">{idea.angle}</p>
                 </div>
               </div>
-            </motion.button>
+            </button>
           ))}
-        </motion.div>
+        </div>
       )}
 
       {!claudeProxy.isPending && ideas.length === 0 && rawResult && (

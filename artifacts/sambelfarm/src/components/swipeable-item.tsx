@@ -1,4 +1,4 @@
-import { useCallback, useState, forwardRef, useImperativeHandle } from "react";
+import { useCallback, useState } from "react";
 import { motion, useMotionValue, animate, type PanInfo, useTransform } from "framer-motion";
 
 export interface SwipeAction {
@@ -18,7 +18,7 @@ interface Props {
 
 const ACTION_W = 80;
 
-export const SwipeableItem = forwardRef<{ reset: () => void }, Props>(function SwipeableItem({ children, leftActions = [], rightActions = [] }, ref) {
+export function SwipeableItem({ children, leftActions = [], rightActions = [] }: Props) {
   const x = useMotionValue(0);
   const [isOpen, setIsOpen] = useState<"left" | "right" | null>(null);
   
@@ -29,11 +29,6 @@ export const SwipeableItem = forwardRef<{ reset: () => void }, Props>(function S
     animate(x, 0, { type: "spring", stiffness: 400, damping: 40 });
     setIsOpen(null);
   }, [x]);
-
-  // Expose reset method to parent
-  useImperativeHandle(ref, () => ({
-    reset: snapClose,
-  }), [snapClose]);
 
   const snapOpenLeft = useCallback(() => {
     animate(x, totalLeftW, { type: "spring", stiffness: 400, damping: 40 });
@@ -70,7 +65,7 @@ export const SwipeableItem = forwardRef<{ reset: () => void }, Props>(function S
   const rightOpacity = useTransform(x, [0, -40], [0, 1]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-muted/20" data-testid="swipeable-item">
+    <div className="relative overflow-hidden rounded-2xl bg-muted/20">
       {/* Left Actions (Appear when swiping right) */}
       {leftActions.length > 0 && (
         <motion.div 
@@ -126,12 +121,9 @@ export const SwipeableItem = forwardRef<{ reset: () => void }, Props>(function S
         style={{ x, position: "relative", zIndex: 10 }}
         onDragEnd={handleDragEnd}
         className="touch-pan-y"
-        data-testid="swipeable-item-content"
       >
         {children}
       </motion.div>
     </div>
   );
-});
-
-SwipeableItem.displayName = "SwipeableItem";
+}
