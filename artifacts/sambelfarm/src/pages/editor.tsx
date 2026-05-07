@@ -142,6 +142,9 @@ export default function EditorPage() {
   const [notionLoaded, setNotionLoaded] = useState(false);
   const [filterTone, setFilterTone] = useState("all");
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // STATE BARU: Menyimpan ID Notion saat sedang edit data lama
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
 
   const notionCreate = useNotionCreatePage();
   const notionQuery = useNotionQuery();
@@ -290,6 +293,7 @@ Format respons sebagai JSON (tanpa markdown code block):
 
   const truncate = (text: string, max = 2000) => text.length > max ? text.slice(0, max) : text;
 
+  // PERBAIKAN: Logika Simpan (Bisa Update atau Create)
   const saveToNotion = () => {
     if (!draft.script.trim()) {
       toast({ title: "Script kosong", description: "Tulis atau generate script dulu.", variant: "destructive" });
@@ -315,20 +319,47 @@ Format respons sebagai JSON (tanpa markdown code block):
     if (draft.captionInstagram) properties["Caption Instagram"] = { rich_text: [{ text: { content: truncate(draft.captionInstagram) } }] };
     if (draft.captionYTShorts) properties["Caption YT Shorts"] = { rich_text: [{ text: { content: truncate(draft.captionYTShorts) } }] };
 
-    notionCreate.mutate(
-      { data: { database_id: "", properties: properties as Record<string, string> } },
-      {
-        onSuccess: () => {
-          resetDraft(); setShowAnalysis(false);
-          setRefreshKey((k) => k + 1); setTab("saved");
-          toast({ title: "Script tersimpan ke Notion!" }); setSaving(false);
-        },
-        onError: (err) => {
-          toast({ title: "Gagal menyimpan ke Notion", description: (err as Error).message ?? "Gagal simpan", variant: "destructive" });
-          setSaving(false);
-        },
-      }
-    );
+    if (editingPageId) {
+      // JIKA SEDANG EDIT: Lakukan UPDATE (Timpa data lama)
+      notionUpdate.mutate(
+        { pageId: editingPageId, data: { properties: properties as Record<string, string> } },
+        {
+          onSuccess: () => {
+            resetDraft(); 
+            setEditingPageId(null); // Bersihkan memori ID
+            setShowAnalysis(false);
+            setRefreshKey((k) => k + 1); 
+            setTab("saved");
+            toast({ title: "Script berhasil diperbarui!" }); 
+            setSaving(false);
+          },
+          onError: (err) => {
+            toast({ title: "Gagal update ke Notion", description: (err as Error).message ?? "Gagal update", variant: "destructive" });
+            setSaving(false);
+          },
+        }
+      );
+    } else {
+      // JIKA DATA BARU: Lakukan CREATE (Bikin baris baru)
+      notionCreate.mutate(
+        { data: { database_id: "", properties: properties as Record<string, string> } },
+        {
+          onSuccess: () => {
+            resetDraft(); 
+            setEditingPageId(null);
+            setShowAnalysis(false);
+            setRefreshKey((k) => k + 1); 
+            setTab("saved");
+            toast({ title: "Script baru tersimpan ke Notion!" }); 
+            setSaving(false);
+          },
+          onError: (err) => {
+            toast({ title: "Gagal menyimpan ke Notion", description: (err as Error).message ?? "Gagal simpan", variant: "destructive" });
+            setSaving(false);
+          },
+        }
+      );
+    }
   };
 
   const adaptScript = () => {
@@ -340,6 +371,7 @@ Format respons sebagai JSON (tanpa markdown code block):
       {
         onSuccess: (data) => {
           setDraft({ ...pageToPartialDraft(selectedPage), script: data.result, platform: adaptPlatform, jenisKonten: adaptJenis });
+          setEditingPageId(null); // Adaptasi dianggap bikin versi baru
           setAdaptOpen(false); setShowAnalysis(false); setTab("editor"); setAiWorking(false);
           toast({ title: "Script adaptasi siap diedit" });
         },
@@ -357,6 +389,7 @@ Format respons sebagai JSON (tanpa markdown code block):
       {
         onSuccess: (data) => {
           setDraft({ ...pageToPartialDraft(selectedPage), script: data.result, tone: rewriteTone });
+          setEditingPageId(null); // Tulis ulang dianggap bikin versi baru
           setRewriteOpen(false); setShowAnalysis(false); setTab("editor"); setAiWorking(false);
           toast({ title: "Script tulis ulang siap diedit" });
         },
@@ -601,7 +634,12 @@ Format respons sebagai JSON (tanpa markdown code block):
 
                       <div className="flex gap-1.5 pt-1">
                         <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" data-testid={`button-edit-saved-${page.id}`}
-                          onClick={() => { setDraft(pageToPartialDraft(page)); setShowAnalysis(getNumber(page, "Skor Viralitas") !== null); setTab("editor"); }}>
+                          onClick={() => { 
+                            setEditingPageId(page.id); // SIMPAN ID NOTION SAAT TOMBOL INI DIKLIK
+                            setDraft(pageToPartialDraft(page)); 
+                            setShowAnalysis(getNumber(page, "Skor Viralitas") !== null); 
+                            setTab("editor"); 
+                          }}>
                           <Edit3 size={12} className="mr-1" />Buka Editor
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" data-testid={`button-adapt-${page.id}`}
