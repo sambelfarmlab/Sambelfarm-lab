@@ -11,6 +11,7 @@ import { SwipeableItem } from "@/components/swipeable-item";
 import { downloadScriptPDF } from "@/lib/pdf";
 import { useToast } from "@/hooks/use-toast";
 import { Lightbulb, FileText, Edit3, Calendar, LogOut, Leaf, FileDown, RefreshCw, Trash2, CalendarDays, CheckCircle2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { useDraft } from "@/lib/draft";
 
 interface NotionPage {
@@ -291,7 +292,21 @@ export default function HomePage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <motion.div 
+            className="space-y-2"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.1 }}
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1
+                }
+              }
+            }}
+          >
             {displayPages.map((page) => {
               const topik = getTitle(page);
               const judul = getJudul(page);
@@ -302,49 +317,56 @@ export default function HomePage() {
               const tanggal = getDate(page, "Tanggal");
 
               return (
-                <SwipeableItem
+                <motion.div
                   key={page.id}
-                  leftActions={[
-                    {
-                      label: "Publish",
-                      icon: <CheckCircle2 size={18} />,
-                      bgClass: "bg-green-500",
-                      direction: "left",
-                      onClick: () => handlePublish(page),
-                    },
-                  ]}
-                  rightActions={[
-                    {
-                      label: "Download",
-                      icon: <FileDown size={18} />,
-                      bgClass: "bg-sky-500",
-                      direction: "right",
-                      onClick: () => handleDownloadPDF(page),
-                    },
-                    {
-                      label: "Status",
-                      icon: <RefreshCw size={18} />,
-                      bgClass: "bg-amber-500",
-                      direction: "right",
-                      onClick: () => { setPageForStatus(page); setChangeStatusOpen(true); },
-                    },
-                    {
-                      label: "Hapus",
-                      icon: <Trash2 size={18} />,
-                      bgClass: "bg-red-500",
-                      direction: "right",
-                      onClick: () => handleDelete(page),
-                    },
-                  ]}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0 }
+                  }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
                 >
-                  <div
-                    data-testid={`script-card-${page.id}`}
-                    className="bg-card border border-border rounded-xl p-3.5 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
-                    onClick={() => {
-                      setDraft(pageToPartialDraft(page));
-                      setLocation("/editor");
-                    }}
+                  <SwipeableItem
+                    leftActions={[
+                      {
+                        label: "Publish",
+                        icon: <CheckCircle2 size={18} />,
+                        bgClass: "bg-green-500",
+                        direction: "left",
+                        onClick: () => handlePublish(page),
+                      },
+                    ]}
+                    rightActions={[
+                      {
+                        label: "Download",
+                        icon: <FileDown size={18} />,
+                        bgClass: "bg-sky-500",
+                        direction: "right",
+                        onClick: () => handleDownloadPDF(page),
+                      },
+                      {
+                        label: "Status",
+                        icon: <RefreshCw size={18} />,
+                        bgClass: "bg-amber-500",
+                        direction: "right",
+                        onClick: () => { setPageForStatus(page); setChangeStatusOpen(true); },
+                      },
+                      {
+                        label: "Hapus",
+                        icon: <Trash2 size={18} />,
+                        bgClass: "bg-red-500",
+                        direction: "right",
+                        onClick: () => handleDelete(page),
+                      },
+                    ]}
                   >
+                    <div
+                      data-testid={`script-card-${page.id}`}
+                      className="bg-card border border-border rounded-xl p-3.5 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
+                      onClick={() => {
+                        setDraft(pageToPartialDraft(page));
+                        setLocation("/editor");
+                      }}
+                    >
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm text-foreground truncate">{title}</div>
                       {topik && judul && (
@@ -362,11 +384,12 @@ export default function HomePage() {
                       {tone && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">{tone}</Badge>}
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${statusColor(status)}`}>{status}</Badge>
                     </div>
-                  </div>
-                </SwipeableItem>
+                    </div>
+                  </SwipeableItem>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
 
         {loaded && displayPages.length > 0 && (

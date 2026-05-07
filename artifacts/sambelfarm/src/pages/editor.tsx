@@ -600,7 +600,21 @@ Format respons sebagai JSON (tanpa markdown code block):
               <p className="text-xs text-muted-foreground mt-1">{filterTone === "all" ? "Buat dan simpan script pertamamu dari halaman Editor." : "Coba ubah filter tone."}</p>
             </div>
           ) : (
-            <>
+            <motion.div 
+              className="space-y-3"
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.1 }}
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.1
+                  }
+                }
+              }}
+            >
               {filteredPages.map((page) => {
                 const topik = getTitle(page);
                 const judul = getRichText(page, "Judul");
@@ -614,33 +628,40 @@ Format respons sebagai JSON (tanpa markdown code block):
                 const scriptPreview = getRichText(page, "Script");
 
                 return (
-                  <SwipeableItem
+                  <motion.div
                     key={page.id}
-                    actions={[
-                      {
-                        label: "Download",
-                        icon: <FileDown size={16} />,
-                        bgClass: "bg-sky-500",
-                        onClick: () => handleDownloadPDF(page),
-                      },
-                      {
-                        label: "Ganti Tone",
-                        icon: <Palette size={16} />,
-                        bgClass: "bg-amber-500",
-                        onClick: () => { setPageForTone(page); setChangeToneOpen(true); },
-                      },
-                      {
-                        label: "Hapus",
-                        icon: <Trash2 size={16} />,
-                        bgClass: "bg-red-500",
-                        onClick: () => handleDelete(page),
-                      },
-                    ]}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: { opacity: 1, y: 0 }
+                    }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
                   >
-                    <div
-                      data-testid={`saved-script-${page.id}`}
-                      className="bg-card border border-border rounded-2xl p-4 space-y-3"
+                    <SwipeableItem
+                      actions={[
+                        {
+                          label: "Download",
+                          icon: <FileDown size={16} />,
+                          bgClass: "bg-sky-500",
+                          onClick: () => handleDownloadPDF(page),
+                        },
+                        {
+                          label: "Ganti Tone",
+                          icon: <Palette size={16} />,
+                          bgClass: "bg-amber-500",
+                          onClick: () => { setPageForTone(page); setChangeToneOpen(true); },
+                        },
+                        {
+                          label: "Hapus",
+                          icon: <Trash2 size={16} />,
+                          bgClass: "bg-red-500",
+                          onClick: () => handleDelete(page),
+                        },
+                      ]}
                     >
+                      <div
+                        data-testid={`saved-script-${page.id}`}
+                        className="bg-card border border-border rounded-2xl p-4 space-y-3"
+                      >
                       <div>
                         <div className="font-semibold text-sm text-foreground">{displayTitle}</div>
                         {topik && judul && <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>}
@@ -683,12 +704,13 @@ Format respons sebagai JSON (tanpa markdown code block):
                           <Sparkles size={12} className="mr-1" />Tulis Ulang
                         </Button>
                       </div>
-                    </div>
-                  </SwipeableItem>
+                      </div>
+                    </SwipeableItem>
+                  </motion.div>
                 );
               })}
               <p className="text-[10px] text-muted-foreground text-center mt-1">Geser kartu ke kiri untuk opsi tambahan</p>
-            </>
+            </motion.div>
           )}
         </div>
       )}
