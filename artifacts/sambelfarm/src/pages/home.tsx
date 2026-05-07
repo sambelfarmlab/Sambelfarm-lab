@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { useNotionQuery, useNotionUpdatePage, useNotionDeletePage } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
@@ -111,6 +111,7 @@ export default function HomePage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [changeStatusOpen, setChangeStatusOpen] = useState(false);
   const [pageForStatus, setPageForStatus] = useState<NotionPage | null>(null);
+  const swipeableRefs = useRef<Array<{ reset: () => void } | null>>([]);
 
   useEffect(() => {
     notionQuery.mutate(
@@ -130,6 +131,13 @@ export default function HomePage() {
       }
     );
   }, []);
+
+  // Reset all swipe states when filter changes
+  useEffect(() => {
+    swipeableRefs.current.forEach((ref) => {
+      if (ref?.reset) ref.reset();
+    });
+  }, [filterStatus]);
 
   const updatePageLocal = (pageId: string, propKey: string, propValue: NotionPage["properties"][string]) => {
     setPages((prev) => prev.map((p) => p.id === pageId
@@ -212,9 +220,14 @@ export default function HomePage() {
     });
   };
 
-  const filteredPages = filterStatus === "all"
-    ? pages
-    : pages.filter((p) => getSelect(p, "Status Revisi") === filterStatus);
+  const filteredPages = useMemo(() => {
+    if (filterStatus === "all") return pages;
+    return pages.filter((p) => {
+      const pageStatus = getSelect(p, "Status Revisi").toLowerCase().trim();
+      const filterValue = filterStatus.toLowerCase().trim();
+      return pageStatus === filterValue;
+    });
+  }, [pages, filterStatus]);
 
   const displayPages = filteredPages.slice(0, 6);
 
@@ -326,6 +339,7 @@ export default function HomePage() {
                   transition={{ duration: 0.4, ease: "easeOut" }}
                 >
                   <SwipeableItem
+                    ref={(el) => { swipeableRefs.current[displayPages.indexOf(page)] = el; }}
                     leftActions={[
                       {
                         label: "Publish",

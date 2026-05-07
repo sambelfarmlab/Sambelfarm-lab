@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, useSpring, useTransform, animate } from "framer-motion";
 import { useNotionCreatePage, useNotionQuery, useNotionUpdatePage, useNotionDeletePage, useClaudeProxy } from "@workspace/api-client-react";
@@ -177,17 +177,16 @@ export default function EditorPage() {
   const [saving, setSaving] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [adaptOpen, setAdaptOpen] = useState(false);
-  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [filterTone, setFilterTone] = useState("all");
   const [changeToneOpen, setChangeToneOpen] = useState(false);
-  const [selectedPage, setSelectedPage] = useState<NotionPage | null>(null);
   const [pageForTone, setPageForTone] = useState<NotionPage | null>(null);
+  const swipeableRefs = useRef<Array<{ reset: () => void } | null>>([]);
   const [adaptPlatform, setAdaptPlatform] = useState("TikTok");
   const [adaptJenis, setAdaptJenis] = useState("Reels");
   const [rewriteTone, setRewriteTone] = useState("Edukatif");
   const [aiWorking, setAiWorking] = useState(false);
   const [notionPages, setNotionPages] = useState<NotionPage[]>([]);
   const [notionLoaded, setNotionLoaded] = useState(false);
-  const [filterTone, setFilterTone] = useState("all");
   const [refreshKey, setRefreshKey] = useState(0);
   
   // STATE BARU: Menyimpan ID Notion saat sedang edit data lama
@@ -453,10 +452,18 @@ Format respons sebagai JSON (tanpa markdown code block):
   const filteredPages = useMemo(() => {
     if (filterTone === "all") return notionPages;
     return notionPages.filter((p) => {
-      const pageTone = getSelect(p, "Tone");
-      return pageTone.toLowerCase().trim() === filterTone.toLowerCase().trim();
+      const pageTone = getSelect(p, "Tone").toLowerCase().trim();
+      const filterValue = filterTone.toLowerCase().trim();
+      return pageTone === filterValue;
     });
   }, [notionPages, filterTone]);
+
+  // Reset all swipe states when filter changes
+  useEffect(() => {
+    swipeableRefs.current.forEach((ref) => {
+      if (ref?.reset) ref.reset();
+    });
+  }, [filterTone]);
 
   return (
     <div className="p-4 space-y-5">
@@ -661,6 +668,7 @@ Format respons sebagai JSON (tanpa markdown code block):
                     transition={{ duration: 0.4, ease: "easeOut" }}
                   >
                     <SwipeableItem
+                      ref={(el) => { swipeableRefs.current[filteredPages.indexOf(page)] = el; }}
                       rightActions={[
                         {
                           label: "Download",
@@ -683,7 +691,7 @@ Format respons sebagai JSON (tanpa markdown code block):
                           direction: "right",
                           onClick: () => handleDelete(page),
                         },
-                      ]}
+                      ]
                     >
                       <div
                         data-testid={`saved-script-${page.id}`}
