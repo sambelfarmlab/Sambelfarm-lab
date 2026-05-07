@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { SwipeableItem } from "@/components/swipeable-item";
 import { downloadScriptPDF } from "@/lib/pdf";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, FileText, Edit3, Calendar, LogOut, Leaf, FileDown, RefreshCw, Trash2, CalendarDays } from "lucide-react";
+import { Lightbulb, FileText, Edit3, Calendar, LogOut, Leaf, FileDown, RefreshCw, Trash2, CalendarDays, CheckCircle2 } from "lucide-react";
 import { useDraft } from "@/lib/draft";
 
 interface NotionPage {
@@ -179,6 +179,24 @@ export default function HomePage() {
     );
   };
 
+  const handlePublish = (page: NotionPage) => {
+    // Optimistic UI: Update status langsung
+    updatePageLocal(page.id, "Status Revisi", { select: { name: "Dipublikasi" } });
+    
+    // Kirim update ke Notion
+    notionUpdate.mutate(
+      { pageId: page.id, data: { properties: { "Status Revisi": { select: { name: "Dipublikasi" } } } as Record<string, string> } },
+      {
+        onSuccess: () => toast({ title: "Script dipublikasi!" }),
+        onError: () => {
+          toast({ title: "Gagal mempublikasi", variant: "destructive" });
+          // Revert UI jika gagal
+          updatePageLocal(page.id, "Status Revisi", { select: { name: getSelect(page, "Status Revisi") } });
+        },
+      }
+    );
+  };
+
   const handleDownloadPDF = (page: NotionPage) => {
     downloadScriptPDF({
       topik: getTitle(page),
@@ -286,23 +304,35 @@ export default function HomePage() {
               return (
                 <SwipeableItem
                   key={page.id}
-                  actions={[
+                  leftActions={[
+                    {
+                      label: "Publish",
+                      icon: <CheckCircle2 size={18} />,
+                      bgClass: "bg-green-500",
+                      direction: "left",
+                      onClick: () => handlePublish(page),
+                    },
+                  ]}
+                  rightActions={[
                     {
                       label: "Download",
-                      icon: <FileDown size={16} />,
+                      icon: <FileDown size={18} />,
                       bgClass: "bg-sky-500",
+                      direction: "right",
                       onClick: () => handleDownloadPDF(page),
                     },
                     {
                       label: "Status",
-                      icon: <RefreshCw size={16} />,
+                      icon: <RefreshCw size={18} />,
                       bgClass: "bg-amber-500",
+                      direction: "right",
                       onClick: () => { setPageForStatus(page); setChangeStatusOpen(true); },
                     },
                     {
                       label: "Hapus",
-                      icon: <Trash2 size={16} />,
+                      icon: <Trash2 size={18} />,
                       bgClass: "bg-red-500",
+                      direction: "right",
                       onClick: () => handleDelete(page),
                     },
                   ]}

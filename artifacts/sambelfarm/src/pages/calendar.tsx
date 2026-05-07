@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useNotionQuery } from "@workspace/api-client-react";
+import { useNotionQuery, useNotionUpdatePage, useNotionDeletePage } from "@workspace/api-client-react";
 import { useDraft } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalIcon, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { SwipeableItem } from "@/components/swipeable-item";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar as CalIcon, ChevronLeft, ChevronRight, Plus, CheckCircle2, Trash2 } from "lucide-react";
 
 interface NotionPage {
   id: string;
@@ -34,11 +36,56 @@ export default function CalendarPage() {
   const today = new Date();
   const [, setLocation] = useLocation();
   const { setDraft, resetDraft } = useDraft();
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [pages, setPages] = useState<NotionPage[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const notionQuery = useNotionQuery();
+  const notionUpdate = useNotionUpdatePage();
+  const notionDelete = useNotionDeletePage();
+
+  const updatePageLocal = (pageId: string, propKey: string, propValue: NotionPage["properties"][string]) => {
+    setPages((prev) => prev.map((p) => p.id === pageId
+      ? { ...p, properties: { ...p.properties, [propKey]: propValue } }
+      : p
+    ));
+  };
+
+  const handlePublish = (page: NotionPage) => {
+    // Optimistic UI: Update status langsung
+    updatePageLocal(page.id, "Status Revisi", { select: { name: "Dipublikasi" } });
+    
+    // Kirim update ke Notion
+    notionUpdate.mutate(
+      { pageId: page.id, data: { properties: { "Status Revisi": { select: { name: "Dipublikasi" } } } as Record<string, string> } },
+      {
+        onSuccess: () => toast({ title: "Script dipublikasi!" }),
+        onError: () => {
+          toast({ title: "Gagal mempublikasi", variant: "destructive" });
+          // Revert UI jika gagal
+          updatePageLocal(page.id, "Status Revisi", { select: { name: getSelect(page, "Status Revisi") } });
+        },
+      }
+    );
+  };
+
+  const handleDelete = (page: NotionPage) => {
+    // Optimistic UI: Hapus langsung dari list
+    setPages((prev) => prev.filter((p) => p.id !== page.id));
+    
+    notionDelete.mutate(
+      { pageId: page.id },
+      {
+        onSuccess: () => toast({ title: "Script dihapus" }),
+        onError: () => {
+          toast({ title: "Gagal menghapus", variant: "destructive" });
+          // Revert UI jika gagal
+          setPages((prev) => [...prev, page].sort((a, b) => a.id.localeCompare(b.id)));
+        },
+      }
+    );
+  };
 
   const handleAddContent = () => {
     if (!selected) return;
@@ -178,17 +225,38 @@ export default function CalendarPage() {
             const status = getSelect(page, "Status Revisi") || "Draft";
             const tone = getSelect(page, "Tone");
             return (
-              <div
+              <SwipeableItem
                 key={page.id}
-                data-testid={`calendar-item-${page.id}`}
-                className="bg-card border border-border rounded-xl p-3 flex items-center gap-3"
+                leftActions={[
+                  {
+                    label: "Publish",
+                    icon: <CheckCircle2 size={18} />,
+                    bgClass: "bg-green-500",
+                    direction: "left",
+                    onClick: () => handlePublish(page),
+                  },
+                ]}
+                rightActions={[
+                  {
+                    label: "Hapus",
+                    icon: <Trash2 size={18} />,
+                    bgClass: "bg-red-500",
+                    direction: "right",
+                    onClick: () => handleDelete(page),
+                  },
+                ]}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{title}</div>
-                  {tone && <div className="text-xs text-muted-foreground mt-0.5">{tone}</div>}
+                <div
+                  data-testid={`calendar-item-${page.id}`}
+                  className="bg-card border border-border rounded-xl p-3 flex items-center gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{title}</div>
+                    {tone && <div className="text-xs text-muted-foreground mt-0.5">{tone}</div>}
+                  </div>
+                  <Badge variant="outline" className={`text-[10px] px-1.5 h-5 ${statusColor(status)}`}>{status}</Badge>
                 </div>
-                <Badge variant="outline" className={`text-[10px] px-1.5 h-5 ${statusColor(status)}`}>{status}</Badge>
-              </div>
+              </SwipeableItem>
             );
           })}
         </div>
