@@ -180,6 +180,8 @@ export default function EditorPage() {
   const [filterTone, setFilterTone] = useState("all");
   const [changeToneOpen, setChangeToneOpen] = useState(false);
   const [pageForTone, setPageForTone] = useState<NotionPage | null>(null);
+  const [selectedPage, setSelectedPage] = useState<NotionPage | null>(null);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
   const swipeableRefs = useRef<Array<{ reset: () => void } | null>>([]);
   const [adaptPlatform, setAdaptPlatform] = useState("TikTok");
   const [adaptJenis, setAdaptJenis] = useState("Reels");
@@ -691,54 +693,52 @@ Format respons sebagai JSON (tanpa markdown code block):
                           direction: "right",
                           onClick: () => handleDelete(page),
                         },
-                      ]
+                      ]}
                     >
                       <div
                         data-testid={`saved-script-${page.id}`}
                         className="bg-card border border-border rounded-2xl p-4 space-y-3"
                       >
-                      <div>
-                        <div className="font-semibold text-sm text-foreground">{displayTitle}</div>
-                        {topik && judul && <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>}
-                        <div className="mt-1.5">
-                          <InlineDatePicker value={tanggal} onSave={(d) => handleDateChange(page, d)} />
+                        <div>
+                          <div className="font-semibold text-sm text-foreground">{displayTitle}</div>
+                          {topik && judul && <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>}
+                          <div className="mt-1.5">
+                            <InlineDatePicker value={tanggal} onSave={(d) => handleDateChange(page, d)} />
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {platform && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{platform}</Badge>}
+                            {jenisKonten && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{jenisKonten}</Badge>}
+                            {tone && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{tone}</Badge>}
+                            {statusRevisi && (
+                              <Badge variant="outline" className={`text-[10px] px-1.5 h-5 ${statusRevisi === "Final" || statusRevisi === "Dipublikasi" ? "bg-primary/10 text-primary border-primary/20" : statusRevisi === "Terjadwal" ? "bg-accent/10 text-accent border-accent/20" : ""}`}>
+                                {statusRevisi}
+                              </Badge>
+                            )}
+                            {skor !== null && (
+                              <Badge className="text-[10px] px-1.5 h-5 bg-primary/10 text-primary border-primary/20">⚡ {Math.round(skor)}</Badge>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {platform && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{platform}</Badge>}
-                          {jenisKonten && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{jenisKonten}</Badge>}
-                          {tone && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{tone}</Badge>}
-                          {statusRevisi && (
-                            <Badge variant="outline" className={`text-[10px] px-1.5 h-5 ${statusRevisi === "Final" || statusRevisi === "Dipublikasi" ? "bg-primary/10 text-primary border-primary/20" : statusRevisi === "Terjadwal" ? "bg-accent/10 text-accent border-accent/20" : ""}`}>
-                              {statusRevisi}
-                            </Badge>
-                          )}
-                          {skor !== null && (
-                            <Badge className="text-[10px] px-1.5 h-5 bg-primary/10 text-primary border-primary/20">⚡ {Math.round(skor)}</Badge>
-                          )}
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-edit-saved-${page.id}`}
+                            onClick={() => { 
+                              setEditingPageId(page.id);
+                              setDraft(pageToPartialDraft(page)); 
+                              setShowAnalysis(getNumber(page, "Skor Viralitas") !== null); 
+                              setTab("editor"); 
+                            }}>
+                            <Edit3 size={10} className="mr-1 shrink-0" />Buka Editor
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-adapt-${page.id}`}
+                            onClick={() => { setSelectedPage(page); setAdaptPlatform(platform || "TikTok"); setAdaptOpen(true); }}>
+                            <RefreshCw size={10} className="mr-1 shrink-0" />Adaptasi
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-rewrite-${page.id}`}
+                            onClick={() => { setSelectedPage(page); setRewriteOpen(true); }}>
+                            <Sparkles size={10} className="mr-1 shrink-0" />Tulis Ulang
+                          </Button>
                         </div>
-                      </div>
-
-
-
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-edit-saved-${page.id}`}
-                          onClick={() => { 
-                            setEditingPageId(page.id); // SIMPAN ID NOTION SAAT TOMBOL INI DIKLIK
-                            setDraft(pageToPartialDraft(page)); 
-                            setShowAnalysis(getNumber(page, "Skor Viralitas") !== null); 
-                            setTab("editor"); 
-                          }}>
-                          <Edit3 size={10} className="mr-1 shrink-0" />Buka Editor
-                        </Button>
-                        <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-adapt-${page.id}`}
-                          onClick={() => { setSelectedPage(page); setAdaptPlatform(platform || "TikTok"); setAdaptOpen(true); }}>
-                          <RefreshCw size={10} className="mr-1 shrink-0" />Adaptasi
-                        </Button>
-                        <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-rewrite-${page.id}`}
-                          onClick={() => { setSelectedPage(page); setRewriteOpen(true); }}>
-                          <Sparkles size={10} className="mr-1 shrink-0" />Tulis Ulang
-                        </Button>
-                      </div>
                       </div>
                     </SwipeableItem>
                   </motion.div>
