@@ -451,7 +451,11 @@ Format respons sebagai JSON (tanpa markdown code block):
   };
 
   const filteredPages = useMemo(() => {
-    return filterTone === "all" ? notionPages : notionPages.filter((p) => getSelect(p, "Tone") === filterTone);
+    if (filterTone === "all") return notionPages;
+    return notionPages.filter((p) => {
+      const pageTone = getSelect(p, "Tone");
+      return pageTone.toLowerCase().trim() === filterTone.toLowerCase().trim();
+    });
   }, [notionPages, filterTone]);
 
   return (
