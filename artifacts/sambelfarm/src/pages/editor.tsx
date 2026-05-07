@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useLocation } from "wouter";
 import { motion, useSpring, useTransform, animate } from "framer-motion";
 import { useNotionCreatePage, useNotionQuery, useNotionUpdatePage, useNotionDeletePage, useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
