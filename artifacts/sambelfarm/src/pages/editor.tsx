@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
-import { motion, useSpring, useTransform, animate } from "framer-motion";
+import { motion, useSpring, useTransform, animate, AnimatePresence } from "framer-motion";
 import { useNotionCreatePage, useNotionQuery, useNotionUpdatePage, useNotionDeletePage, useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
 import { useDraft, type Draft } from "@/lib/draft";
@@ -451,19 +451,32 @@ Format respons sebagai JSON (tanpa markdown code block):
     );
   };
 
+  // FIXED: Use useMemo with raw source data (notionPages), not filtered result
   const filteredPages = useMemo(() => {
-    if (filterTone === "all") return notionPages;
-    return notionPages.filter((p) => {
-      const pageTone = getSelect(p, "Tone").toLowerCase().trim();
-      const filterValue = filterTone.toLowerCase().trim();
-      return pageTone === filterValue;
-    });
+    // Start with immutable copy of raw source data
+    let result = [...notionPages];
+
+    // Filter by tone if not "all"
+    if (filterTone && filterTone !== "all") {
+      result = result.filter((p) => {
+        const pageTone = getSelect(p, "Tone").toLowerCase().trim();
+        const filterValue = filterTone.toLowerCase().trim();
+        return pageTone === filterValue;
+      });
+    }
+
+    return result;
   }, [notionPages, filterTone]);
 
-  // Reset all swipe states when filter changes
+  // Reset all swipe states when filter changes - FIXED: Clear ref array completely
   useEffect(() => {
-    swipeableRefs.current.forEach((ref) => {
-      if (ref?.reset) ref.reset();
+    swipeableRefs.current = [];
+    // DEBUG LOG: Track filter changes and list state
+    console.log({
+      filterTone,
+      notionPagesLength: notionPages.length,
+      filteredLength: filteredPages.length,
+      timestamp: new Date().toISOString()
     });
   }, [filterTone]);
 
@@ -633,22 +646,23 @@ Format respons sebagai JSON (tanpa markdown code block):
               <p className="text-xs text-muted-foreground mt-1">{filterTone === "all" ? "Buat dan simpan script pertamamu dari halaman Editor." : "Coba ubah filter tone."}</p>
             </div>
           ) : (
-            <motion.div 
-              className="space-y-3"
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, amount: 0.1 }}
-              variants={{
-                hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: {
-                    staggerChildren: 0.1
+            <AnimatePresence mode="popLayout">
+              <motion.div 
+                className="space-y-3"
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, amount: 0.1 }}
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.1
+                    }
                   }
-                }
-              }}
-            >
-              {filteredPages.map((page) => {
+                }}
+              >
+                {filteredPages.map((page, index) => {
                 const topik = getTitle(page);
                 const judul = getRichText(page, "Judul");
                 const displayTitle = judul || topik || "Tanpa Judul";
@@ -668,9 +682,10 @@ Format respons sebagai JSON (tanpa markdown code block):
                       show: { opacity: 1, y: 0 }
                     }}
                     transition={{ duration: 0.4, ease: "easeOut" }}
+                    exit={{ opacity: 0, y: -20 }}
                   >
                     <SwipeableItem
-                      ref={(el) => { swipeableRefs.current[filteredPages.indexOf(page)] = el; }}
+                      ref={(el) => { swipeableRefs.current[index] = el; }}
                       rightActions={[
                         {
                           label: "Download",

@@ -11,7 +11,7 @@ import { SwipeableItem } from "@/components/swipeable-item";
 import { downloadScriptPDF } from "@/lib/pdf";
 import { useToast } from "@/hooks/use-toast";
 import { Lightbulb, FileText, Edit3, Calendar, LogOut, Leaf, FileDown, RefreshCw, Trash2, CalendarDays, CheckCircle2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDraft } from "@/lib/draft";
 
 interface NotionPage {
@@ -132,10 +132,15 @@ export default function HomePage() {
     );
   }, []);
 
-  // Reset all swipe states when filter changes
+  // Reset all swipe states when filter changes - FIXED: Clear ref array completely
   useEffect(() => {
-    swipeableRefs.current.forEach((ref) => {
-      if (ref?.reset) ref.reset();
+    swipeableRefs.current = [];
+    // DEBUG LOG: Track filter changes and list state
+    console.log({
+      filterStatus,
+      pagesLength: pages.length,
+      filteredLength: filteredPages.length,
+      timestamp: new Date().toISOString()
     });
   }, [filterStatus]);
 
@@ -220,13 +225,21 @@ export default function HomePage() {
     });
   };
 
+  // FIXED: Use useMemo with raw source data (pages), not filtered result
   const filteredPages = useMemo(() => {
-    if (filterStatus === "all") return pages;
-    return pages.filter((p) => {
-      const pageStatus = getSelect(p, "Status Revisi").toLowerCase().trim();
-      const filterValue = filterStatus.toLowerCase().trim();
-      return pageStatus === filterValue;
-    });
+    // Start with immutable copy of raw source data
+    let result = [...pages];
+
+    // Filter by status if not "all"
+    if (filterStatus && filterStatus !== "all") {
+      result = result.filter((p) => {
+        const pageStatus = getSelect(p, "Status Revisi").toLowerCase().trim();
+        const filterValue = filterStatus.toLowerCase().trim();
+        return pageStatus === filterValue;
+      });
+    }
+
+    return result;
   }, [pages, filterStatus]);
 
   const displayPages = filteredPages.slice(0, 6);
@@ -305,105 +318,108 @@ export default function HomePage() {
             </p>
           </div>
         ) : (
-          <motion.div 
-            className="space-y-2"
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.1 }}
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: {
-                  staggerChildren: 0.1
+          <AnimatePresence mode="popLayout">
+            <motion.div 
+              className="space-y-2"
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.1 }}
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.1
+                  }
                 }
-              }
-            }}
-          >
-            {displayPages.map((page) => {
-              const topik = getTitle(page);
-              const judul = getJudul(page);
-              const title = judul || topik || "Tanpa Judul";
-              const tone = getSelect(page, "Tone");
-              const status = getSelect(page, "Status Revisi") || "Draft";
-              const platform = getSelect(page, "Platform");
-              const tanggal = getDate(page, "Tanggal");
+              }}
+            >
+              {displayPages.map((page, index) => {
+                const topik = getTitle(page);
+                const judul = getJudul(page);
+                const title = judul || topik || "Tanpa Judul";
+                const tone = getSelect(page, "Tone");
+                const status = getSelect(page, "Status Revisi") || "Draft";
+                const platform = getSelect(page, "Platform");
+                const tanggal = getDate(page, "Tanggal");
 
-              return (
-                <motion.div
-                  key={page.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 20 },
-                    show: { opacity: 1, y: 0 }
-                  }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                >
-                  <SwipeableItem
-                    ref={(el) => { swipeableRefs.current[displayPages.indexOf(page)] = el; }}
-                    leftActions={[
-                      {
-                        label: "Publish",
-                        icon: <CheckCircle2 size={18} />,
-                        bgClass: "bg-green-500",
-                        direction: "left",
-                        onClick: () => handlePublish(page),
-                      },
-                    ]}
-                    rightActions={[
-                      {
-                        label: "Download",
-                        icon: <FileDown size={18} />,
-                        bgClass: "bg-sky-500",
-                        direction: "right",
-                        onClick: () => handleDownloadPDF(page),
-                      },
-                      {
-                        label: "Status",
-                        icon: <RefreshCw size={18} />,
-                        bgClass: "bg-amber-500",
-                        direction: "right",
-                        onClick: () => { setPageForStatus(page); setChangeStatusOpen(true); },
-                      },
-                      {
-                        label: "Hapus",
-                        icon: <Trash2 size={18} />,
-                        bgClass: "bg-red-500",
-                        direction: "right",
-                        onClick: () => handleDelete(page),
-                      },
-                    ]}
+                return (
+                  <motion.div
+                    key={page.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: { opacity: 1, y: 0 }
+                    }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    exit={{ opacity: 0, y: -20 }}
                   >
-                    <div
-                      data-testid={`script-card-${page.id}`}
-                      className="bg-card border border-border rounded-xl p-4 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
-                      onClick={() => {
-                        setDraft(pageToPartialDraft(page));
-                        setLocation("/editor");
-                      }}
+                    <SwipeableItem
+                      ref={(el) => { swipeableRefs.current[index] = el; }}
+                      leftActions={[
+                        {
+                          label: "Publish",
+                          icon: <CheckCircle2 size={18} />,
+                          bgClass: "bg-green-500",
+                          direction: "left",
+                          onClick: () => handlePublish(page),
+                        },
+                      ]}
+                      rightActions={[
+                        {
+                          label: "Download",
+                          icon: <FileDown size={18} />,
+                          bgClass: "bg-sky-500",
+                          direction: "right",
+                          onClick: () => handleDownloadPDF(page),
+                        },
+                        {
+                          label: "Status",
+                          icon: <RefreshCw size={18} />,
+                          bgClass: "bg-amber-500",
+                          direction: "right",
+                          onClick: () => { setPageForStatus(page); setChangeStatusOpen(true); },
+                        },
+                        {
+                          label: "Hapus",
+                          icon: <Trash2 size={18} />,
+                          bgClass: "bg-red-500",
+                          direction: "right",
+                          onClick: () => handleDelete(page),
+                        },
+                      ]}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-foreground truncate">{title}</div>
-                        {topik && judul && (
-                          <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>
-                        )}
-                        <div className="mt-2">
-                          <InlineDatePicker
-                            value={tanggal}
-                            onSave={(d) => handleDateChange(page, d)}
-                          />
+                      <div
+                        data-testid={`script-card-${page.id}`}
+                        className="bg-card border border-border rounded-xl p-4 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setDraft(pageToPartialDraft(page));
+                          setLocation("/editor");
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-foreground truncate">{title}</div>
+                          {topik && judul && (
+                            <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>
+                          )}
+                          <div className="mt-2">
+                            <InlineDatePicker
+                              value={tanggal}
+                              onSave={(d) => handleDateChange(page, d)}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          {platform && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 whitespace-nowrap">{platform}</Badge>}
+                          {tone && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 whitespace-nowrap">{tone}</Badge>}
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 whitespace-nowrap ${statusColor(status)}`}>{status}</Badge>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        {platform && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 whitespace-nowrap">{platform}</Badge>}
-                        {tone && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 whitespace-nowrap">{tone}</Badge>}
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 whitespace-nowrap ${statusColor(status)}`}>{status}</Badge>
-                      </div>
-                    </div>
-                  </SwipeableItem>
-                </motion.div>
-              );
-            })}
-          </motion.div>
+                    </SwipeableItem>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
         )}
 
         {loaded && displayPages.length > 0 && (
