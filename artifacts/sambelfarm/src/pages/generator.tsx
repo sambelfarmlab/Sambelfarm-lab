@@ -49,7 +49,7 @@ export default function GeneratorPage() {
       return;
     }
 
-    const systemPrompt = `Kamu adalah penulis naskah konten pertanian dan kuliner Indonesia kelas dunia. Kamu ahli membuat script viral yang autentik dan engaging untuk brand Sambelfarm.
+    const systemPrompt = `Kamu adalah ahli strategi konten dan penulis naskah video pendek yang berfokus pada edukasi pertanian, khususnya budidaya cabai, untuk audiens 'Sambelers'. Kamu harus membuat skrip yang sangat informatif, praktis, dan menarik, dengan gaya bahasa yang autentik dan mudah dipahami oleh petani muda dan penggemar cabai.
 
 ${config.dnaStyle ? `DNA Brand: ${config.dnaStyle}` : ""}
 
@@ -59,7 +59,7 @@ Gaya penulisan:
 - Ritme yang enak diikuti
 - Bahasa Indonesia yang dekat dengan keseharian`;
 
-    const prompt = `Buat script ${draft.jenisKonten} untuk platform ${draft.platform} dengan tone "${draft.tone}".
+    const prompt = `Buat script ${draft.jenisKonten} untuk platform ${draft.platform} dengan tone "${draft.tone}" yang berfokus pada edukasi pertanian cabai. Pastikan kontennya memberikan nilai tambah bagi 'Sambelers' (petani atau penggemar cabai).
 
 Topik: ${draft.topik}
 ${draft.judul ? `Judul: ${draft.judul}` : ""}
@@ -67,9 +67,9 @@ ${draft.konsep ? `Konsep/POV: ${draft.konsep}` : ""}
 ${draft.inputTambahan ? `Catatan tambahan: ${draft.inputTambahan}` : ""}
 
 Struktur script:
-1. HOOK (3-5 detik pertama — wajib bikin penonton berhenti scroll)
-2. BODY (konten utama — informatif, mengalir)
-3. CTA (ajakan yang natural, tidak memaksa)
+1. HOOK (3-5 detik pertama — wajib bikin penonton berhenti scroll dengan fakta menarik atau pertanyaan relevan seputar cabai)
+2. BODY (konten utama — informatif, mengalir, sertakan tips praktis, data singkat, atau langkah-langkah budidaya cabai yang mudah diikuti)
+3. CTA (ajakan yang natural, tidak memaksa, bisa berupa ajakan untuk mencoba tips, bertanya di kolom komentar, atau mengikuti akun untuk info lebih lanjut)
 
 ${draft.jenisKonten === "Carousel" ? "Format sebagai SLIDE 1:, SLIDE 2:, dst." : "Format sebagai narasi yang mengalir."}
 ${draft.jenisKonten === "Stories" ? "Setiap bagian untuk 1 stories (max 15 detik). Gunakan format: STORIES 1:, STORIES 2: dst." : ""}

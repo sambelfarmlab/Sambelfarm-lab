@@ -240,7 +240,7 @@ export default function EditorPage() {
     if (!draft.script.trim()) return;
     setAnalyzing(true);
 
-    const prompt = `Analisis script konten berikut menggunakan framework TRIBE v2 (Trigger, Resonance, Impact, Behavior, Engagement). Lalu buat caption siap posting untuk 3 platform.
+    const prompt = `Analisis script konten edukasi pertanian cabai berikut menggunakan framework TRIBE v2 (Trigger, Resonance, Impact, Behavior, Engagement) dari sudut pandang audiens 'Sambelers' (petani atau penggemar cabai). Berikan skor 0-100 untuk setiap elemen TRIBE. Lalu, buat rekomendasi perbaikan yang spesifik dan actionable untuk meningkatkan viralitas dan engagement di kalangan 'Sambelers'. Terakhir, buat caption siap posting untuk 3 platform (TikTok, Instagram, YouTube Shorts) yang menarik dan relevan dengan topik cabai.
 
 SCRIPT:
 ${draft.script}
