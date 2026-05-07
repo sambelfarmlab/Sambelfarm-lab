@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useNotionCreatePage, useClaudeProxy } from "@workspace/api-client-react";
+import { useState, useEffect } from "react";
+import { useNotionCreatePage, useNotionQuery, useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
-import { useDraft, type SavedScript } from "@/lib/draft";
+import { useDraft, type Draft } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,69 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
   Edit3, Sparkles, RefreshCw, Save, Copy, Check, BarChart2,
-  BookOpen, ChevronDown, ChevronUp
+  BookOpen, ChevronDown, ChevronUp, RotateCcw
 } from "lucide-react";
 
 const PLATFORMS = ["TikTok", "Instagram Reels", "Instagram Stories", "Instagram Feed", "YouTube Shorts", "YouTube"];
 const JENIS_KONTEN = ["Reels", "Stories", "Feed Post", "Carousel", "Tutorial", "Behind the Scenes"];
 const TONES = ["Storytelling", "Edukatif", "Promosi", "Nyeleneh", "Roasting"];
+
+interface NotionPage {
+  id: string;
+  properties: Record<string, {
+    title?: Array<{ plain_text: string }>;
+    rich_text?: Array<{ plain_text: string }>;
+    select?: { name: string };
+    number?: number;
+    date?: { start: string };
+  }>;
+}
+
+function getTitle(page: NotionPage): string {
+  return page.properties?.Topik?.title?.[0]?.plain_text ?? "";
+}
+function getRichText(page: NotionPage, prop: string): string {
+  return page.properties?.[prop]?.rich_text?.[0]?.plain_text ?? "";
+}
+function getSelect(page: NotionPage, prop: string): string {
+  return page.properties?.[prop]?.select?.name ?? "";
+}
+function getNumber(page: NotionPage, prop: string): number | null {
+  const v = page.properties?.[prop]?.number;
+  return v !== undefined ? v : null;
+}
+function getDate(page: NotionPage, prop: string): string {
+  return page.properties?.[prop]?.date?.start ?? "";
+}
+
+function pageToPartialDraft(page: NotionPage): Partial<Draft> {
+  return {
+    topik: getTitle(page),
+    judul: getRichText(page, "Judul"),
+    platform: getSelect(page, "Platform") || "TikTok",
+    jenisKonten: getSelect(page, "Jenis Konten") || "Reels",
+    tone: getSelect(page, "Tone") || "Storytelling",
+    tanggal: getDate(page, "Tanggal"),
+    script: getRichText(page, "Script"),
+    skorViralitas: getNumber(page, "Skor Viralitas"),
+    analisisAI: getRichText(page, "Analisis AI"),
+    rekomendasi: getRichText(page, "Rekomendasi"),
+    captionTikTok: getRichText(page, "Caption TikTok"),
+    captionInstagram: getRichText(page, "Caption Instagram"),
+    captionYTShorts: getRichText(page, "Caption YT Shorts"),
+    tribeTrigger: 0,
+    tribeResonance: 0,
+    tribeImpact: 0,
+    tribeBehavior: 0,
+    tribeEngagement: 0,
+    inputTambahan: "",
+    konsep: "",
+  };
+}
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -48,37 +102,56 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
 }
 
 interface TribeResult {
-  trigger: number;
-  resonance: number;
-  impact: number;
-  behavior: number;
-  engagement: number;
-  skor_viralitas: number;
-  analisis_ai: string;
-  rekomendasi: string;
-  caption_tiktok: string;
-  caption_instagram: string;
-  caption_yt_shorts: string;
+  trigger: number; resonance: number; impact: number; behavior: number; engagement: number;
+  skor_viralitas: number; analisis_ai: string; rekomendasi: string;
+  caption_tiktok: string; caption_instagram: string; caption_yt_shorts: string;
 }
 
 export default function EditorPage() {
-  const { draft, setDraft, resetDraft, savedScripts, addSaved } = useDraft();
+  const { draft, setDraft, resetDraft } = useDraft();
   const [tab, setTab] = useState<"editor" | "saved">("editor");
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [adaptOpen, setAdaptOpen] = useState(false);
   const [rewriteOpen, setRewriteOpen] = useState(false);
-  const [selectedSaved, setSelectedSaved] = useState<SavedScript | null>(null);
+  const [selectedPage, setSelectedPage] = useState<NotionPage | null>(null);
   const [adaptPlatform, setAdaptPlatform] = useState("TikTok");
   const [adaptJenis, setAdaptJenis] = useState("Reels");
   const [rewriteTone, setRewriteTone] = useState("Edukatif");
   const [aiWorking, setAiWorking] = useState(false);
+  const [notionPages, setNotionPages] = useState<NotionPage[]>([]);
+  const [notionLoaded, setNotionLoaded] = useState(false);
+  const [filterTone, setFilterTone] = useState("all");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const notionCreate = useNotionCreatePage();
+  const notionQuery = useNotionQuery();
   const claudeProxy = useClaudeProxy();
   const { toast } = useToast();
   const config = getConfig();
+
+  useEffect(() => {
+    if (tab === "saved") {
+      setNotionLoaded(false);
+      notionQuery.mutate(
+        {
+          data: {
+            database_id: "",
+            page_size: 30,
+            sorts: [{ timestamp: "last_edited_time", direction: "descending" } as unknown as Record<string, string>],
+          }
+        },
+        {
+          onSuccess: (data) => {
+            setNotionPages((data as unknown as { results: NotionPage[] }).results ?? []);
+            setNotionLoaded(true);
+          },
+          onError: () => setNotionLoaded(true),
+        }
+      );
+    }
+  }, [tab, refreshKey]);
 
   const analyzeTribe = () => {
     if (!draft.script.trim()) return;
@@ -110,15 +183,10 @@ Format respons sebagai JSON (tanpa markdown code block):
   "caption_yt_shorts": "<judul + deskripsi YouTube Shorts singkat>"
 }
 
-Penjelasan skor TRIBE:
-- Trigger: kekuatan hook/pembuka memicu rasa ingin tahu
-- Resonance: kedalaman resonansi dengan audiens target
-- Impact: nilai/dampak yang diberikan
-- Behavior: dorongan untuk bertindak (like/share/save/beli)
-- Engagement: prediksi tingkat interaksi keseluruhan`;
+Penjelasan skor: Trigger=kekuatan hook, Resonance=resonansi audiens, Impact=nilai/dampak, Behavior=dorongan aksi, Engagement=prediksi interaksi.`;
 
     claudeProxy.mutate(
-      { data: { system: "Kamu adalah analis konten digital senior yang ahli mengevaluasi viralitas konten Indonesia dan menulis caption.", prompt, model: config.aiModel } },
+      { data: { system: "Kamu adalah analis konten digital senior ahli mengevaluasi viralitas konten Indonesia dan menulis caption.", prompt, model: config.aiModel } },
       {
         onSuccess: (data) => {
           try {
@@ -165,8 +233,8 @@ Penjelasan skor TRIBE:
     setSaving(true);
 
     const properties: Record<string, unknown> = {
-      Judul: { title: [{ text: { content: draft.judul || draft.topik || "Tanpa Judul" } }] },
-      Topik: { rich_text: [{ text: { content: truncate(draft.topik) } }] },
+      Topik: { title: [{ text: { content: draft.topik || draft.judul || "Tanpa Judul" } }] },
+      Judul: { rich_text: [{ text: { content: truncate(draft.judul) } }] },
       Platform: { select: { name: draft.platform } },
       "Jenis Konten": { select: { name: draft.jenisKonten } },
       Tone: { select: { name: draft.tone } },
@@ -174,44 +242,21 @@ Penjelasan skor TRIBE:
       "Status Revisi": { select: { name: "Draft" } },
     };
 
-    if (draft.tanggal) {
-      properties["Tanggal"] = { date: { start: draft.tanggal } };
-    }
-    if (draft.konsep) {
-      properties["Konsep"] = { rich_text: [{ text: { content: truncate(draft.konsep) } }] };
-    }
-    if (draft.skorViralitas !== null) {
-      properties["Skor Viralitas"] = { number: draft.skorViralitas };
-    }
-    if (draft.analisisAI) {
-      properties["Analisis AI"] = { rich_text: [{ text: { content: truncate(draft.analisisAI) } }] };
-    }
-    if (draft.rekomendasi) {
-      properties["Rekomendasi"] = { rich_text: [{ text: { content: truncate(draft.rekomendasi) } }] };
-    }
-    if (draft.captionTikTok) {
-      properties["Caption TikTok"] = { rich_text: [{ text: { content: truncate(draft.captionTikTok) } }] };
-    }
-    if (draft.captionInstagram) {
-      properties["Caption Instagram"] = { rich_text: [{ text: { content: truncate(draft.captionInstagram) } }] };
-    }
-    if (draft.captionYTShorts) {
-      properties["Caption YT Shorts"] = { rich_text: [{ text: { content: truncate(draft.captionYTShorts) } }] };
-    }
+    if (draft.tanggal) properties["Tanggal"] = { date: { start: draft.tanggal } };
+    if (draft.skorViralitas !== null) properties["Skor Viralitas"] = { number: draft.skorViralitas };
+    if (draft.analisisAI) properties["Analisis AI"] = { rich_text: [{ text: { content: truncate(draft.analisisAI) } }] };
+    if (draft.rekomendasi) properties["Rekomendasi"] = { rich_text: [{ text: { content: truncate(draft.rekomendasi) } }] };
+    if (draft.captionTikTok) properties["Caption TikTok"] = { rich_text: [{ text: { content: truncate(draft.captionTikTok) } }] };
+    if (draft.captionInstagram) properties["Caption Instagram"] = { rich_text: [{ text: { content: truncate(draft.captionInstagram) } }] };
+    if (draft.captionYTShorts) properties["Caption YT Shorts"] = { rich_text: [{ text: { content: truncate(draft.captionYTShorts) } }] };
 
     notionCreate.mutate(
       { data: { database_id: "", properties: properties as Record<string, string> } },
       {
-        onSuccess: (data) => {
-          const pageId = (data as unknown as { id: string }).id ?? "";
-          const saved: SavedScript = {
-            ...draft,
-            notionPageId: pageId,
-            savedAt: new Date().toISOString(),
-          };
-          addSaved(saved);
+        onSuccess: () => {
           resetDraft();
           setShowAnalysis(false);
+          setRefreshKey((k) => k + 1);
           setTab("saved");
           toast({ title: "Script tersimpan ke Notion!" });
           setSaving(false);
@@ -225,35 +270,27 @@ Penjelasan skor TRIBE:
     );
   };
 
+  const getScriptFromPage = (page: NotionPage) => getRichText(page, "Script");
+
   const adaptScript = () => {
-    if (!selectedSaved) return;
+    if (!selectedPage) return;
+    const script = getScriptFromPage(selectedPage);
     setAiWorking(true);
     claudeProxy.mutate(
       {
         data: {
           system: "Kamu adalah content writer ahli adaptasi konten Indonesia.",
-          prompt: `Sesuaikan script berikut untuk platform ${adaptPlatform} dengan format ${adaptJenis}. Pertahankan pesan utama, sesuaikan struktur, panjang, dan gaya dengan platform tujuan.\n\nSCRIPT ASLI:\n${selectedSaved.script}`,
+          prompt: `Sesuaikan script berikut untuk platform ${adaptPlatform} dengan format ${adaptJenis}. Pertahankan pesan utama, sesuaikan struktur, panjang, dan gaya dengan platform tujuan.\n\nSCRIPT ASLI:\n${script}`,
           model: config.aiModel,
         }
       },
       {
         onSuccess: (data) => {
           setDraft({
-            ...selectedSaved,
+            ...pageToPartialDraft(selectedPage),
             script: data.result,
             platform: adaptPlatform,
             jenisKonten: adaptJenis,
-            skorViralitas: null,
-            tribeTrigger: 0,
-            tribeResonance: 0,
-            tribeImpact: 0,
-            tribeBehavior: 0,
-            tribeEngagement: 0,
-            analisisAI: "",
-            rekomendasi: "",
-            captionTikTok: "",
-            captionInstagram: "",
-            captionYTShorts: "",
           });
           setAdaptOpen(false);
           setShowAnalysis(false);
@@ -270,33 +307,23 @@ Penjelasan skor TRIBE:
   };
 
   const rewriteScript = () => {
-    if (!selectedSaved) return;
+    if (!selectedPage) return;
+    const script = getScriptFromPage(selectedPage);
     setAiWorking(true);
     claudeProxy.mutate(
       {
         data: {
           system: "Kamu adalah penulis naskah konten Indonesia yang versatile.",
-          prompt: `Tulis ulang script berikut dengan tone "${rewriteTone}". Pertahankan inti pesan dan esensi konten, tapi ubah total gaya, pendekatan, dan cara penyampaiannya.\n\nSCRIPT ASLI:\n${selectedSaved.script}`,
+          prompt: `Tulis ulang script berikut dengan tone "${rewriteTone}". Pertahankan inti pesan dan esensi konten, tapi ubah total gaya, pendekatan, dan cara penyampaiannya.\n\nSCRIPT ASLI:\n${script}`,
           model: config.aiModel,
         }
       },
       {
         onSuccess: (data) => {
           setDraft({
-            ...selectedSaved,
+            ...pageToPartialDraft(selectedPage),
             script: data.result,
             tone: rewriteTone,
-            skorViralitas: null,
-            tribeTrigger: 0,
-            tribeResonance: 0,
-            tribeImpact: 0,
-            tribeBehavior: 0,
-            tribeEngagement: 0,
-            analisisAI: "",
-            rekomendasi: "",
-            captionTikTok: "",
-            captionInstagram: "",
-            captionYTShorts: "",
           });
           setRewriteOpen(false);
           setShowAnalysis(false);
@@ -312,11 +339,15 @@ Penjelasan skor TRIBE:
     );
   };
 
-  const openSavedForEdit = (s: SavedScript) => {
-    setDraft({ ...s });
-    setShowAnalysis(!!s.skorViralitas);
+  const openPageForEdit = (page: NotionPage) => {
+    setDraft(pageToPartialDraft(page));
+    setShowAnalysis(getNumber(page, "Skor Viralitas") !== null);
     setTab("editor");
   };
+
+  const filteredPages = filterTone === "all"
+    ? notionPages
+    : notionPages.filter((p) => getSelect(p, "Tone") === filterTone);
 
   return (
     <div className="p-4 space-y-5">
@@ -336,7 +367,7 @@ Penjelasan skor TRIBE:
             onClick={() => setTab(t)}
             className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
           >
-            {t === "editor" ? "Editor" : `Script Tersimpan${savedScripts.length > 0 ? ` (${savedScripts.length})` : ""}`}
+            {t === "editor" ? "Editor" : `Script Tersimpan${notionLoaded && notionPages.length > 0 ? ` (${notionPages.length})` : ""}`}
           </button>
         ))}
       </div>
@@ -509,7 +540,6 @@ Penjelasan skor TRIBE:
               {(draft.captionTikTok || draft.captionInstagram || draft.captionYTShorts) && (
                 <div className="border-t border-border pt-3 space-y-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Caption Siap Posting</p>
-
                   {draft.captionTikTok && (
                     <div className="bg-muted/50 rounded-xl p-3 space-y-2">
                       <div className="flex items-center justify-between">
@@ -519,7 +549,6 @@ Penjelasan skor TRIBE:
                       <p className="text-sm text-foreground whitespace-pre-wrap">{draft.captionTikTok}</p>
                     </div>
                   )}
-
                   {draft.captionInstagram && (
                     <div className="bg-muted/50 rounded-xl p-3 space-y-2">
                       <div className="flex items-center justify-between">
@@ -529,7 +558,6 @@ Penjelasan skor TRIBE:
                       <p className="text-sm text-foreground whitespace-pre-wrap">{draft.captionInstagram}</p>
                     </div>
                   )}
-
                   {draft.captionYTShorts && (
                     <div className="bg-muted/50 rounded-xl p-3 space-y-2">
                       <div className="flex items-center justify-between">
@@ -548,69 +576,113 @@ Penjelasan skor TRIBE:
 
       {tab === "saved" && (
         <div className="space-y-3 pb-4">
-          {savedScripts.length === 0 ? (
+          <div className="flex gap-2">
+            <Select value={filterTone} onValueChange={setFilterTone}>
+              <SelectTrigger className="flex-1 h-9 text-sm" data-testid="select-filter-tone">
+                <SelectValue placeholder="Filter Tone" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tone</SelectItem>
+                {TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              data-testid="button-refresh-notion"
+              onClick={() => setRefreshKey((k) => k + 1)}
+            >
+              <RotateCcw size={14} />
+            </Button>
+          </div>
+
+          {!notionLoaded ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+            </div>
+          ) : filteredPages.length === 0 ? (
             <div className="bg-muted/50 rounded-2xl p-8 text-center">
               <BookOpen size={32} className="text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-medium text-foreground">Belum ada script tersimpan</p>
-              <p className="text-xs text-muted-foreground mt-1">Buat dan simpan script pertamamu dari halaman Editor.</p>
+              <p className="text-sm font-medium text-foreground">
+                {filterTone === "all" ? "Belum ada script tersimpan" : `Tidak ada script dengan tone ${filterTone}`}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {filterTone === "all" ? "Buat dan simpan script pertamamu dari halaman Editor." : "Coba ubah filter tone."}
+              </p>
             </div>
           ) : (
-            savedScripts.map((s) => (
-              <div
-                key={s.notionPageId}
-                data-testid={`saved-script-${s.notionPageId}`}
-                className="bg-card border border-border rounded-2xl p-4 space-y-3"
-              >
-                <div>
-                  <div className="font-semibold text-sm text-foreground">{s.judul || s.topik || "Tanpa Judul"}</div>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {s.platform && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.platform}</Badge>}
-                    {s.jenisKonten && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.jenisKonten}</Badge>}
-                    {s.tone && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.tone}</Badge>}
-                    {s.tanggal && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{s.tanggal}</Badge>}
-                    {s.skorViralitas !== null && (
-                      <Badge className="text-[10px] px-1.5 h-5 bg-primary/10 text-primary border-primary/20">
-                        ⚡ {Math.round(s.skorViralitas)}
-                      </Badge>
+            filteredPages.map((page) => {
+              const topik = getTitle(page);
+              const judul = getRichText(page, "Judul");
+              const displayTitle = judul || topik || "Tanpa Judul";
+              const platform = getSelect(page, "Platform");
+              const jenisKonten = getSelect(page, "Jenis Konten");
+              const tone = getSelect(page, "Tone");
+              const tanggal = getDate(page, "Tanggal");
+              const statusRevisi = getSelect(page, "Status Revisi");
+              const skor = getNumber(page, "Skor Viralitas");
+              const scriptPreview = getRichText(page, "Script");
+
+              return (
+                <div
+                  key={page.id}
+                  data-testid={`saved-script-${page.id}`}
+                  className="bg-card border border-border rounded-2xl p-4 space-y-3"
+                >
+                  <div>
+                    <div className="font-semibold text-sm text-foreground">{displayTitle}</div>
+                    {topik && judul && (
+                      <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>
                     )}
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {platform && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{platform}</Badge>}
+                      {jenisKonten && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{jenisKonten}</Badge>}
+                      {tone && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{tone}</Badge>}
+                      {tanggal && <Badge variant="outline" className="text-[10px] px-1.5 h-5">{tanggal}</Badge>}
+                      {statusRevisi && (
+                        <Badge variant="outline" className={`text-[10px] px-1.5 h-5 ${statusRevisi === "Final" || statusRevisi === "Dipublikasi" ? "bg-primary/10 text-primary border-primary/20" : statusRevisi === "Terjadwal" ? "bg-accent/10 text-accent border-accent/20" : ""}`}>
+                          {statusRevisi}
+                        </Badge>
+                      )}
+                      {skor !== null && (
+                        <Badge className="text-[10px] px-1.5 h-5 bg-primary/10 text-primary border-primary/20">
+                          ⚡ {Math.round(skor)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {scriptPreview && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{scriptPreview}</p>
+                  )}
+
+                  <div className="flex gap-1.5 pt-1">
+                    <Button
+                      size="sm" variant="outline" className="flex-1 h-8 text-xs"
+                      data-testid={`button-edit-saved-${page.id}`}
+                      onClick={() => openPageForEdit(page)}
+                    >
+                      <Edit3 size={12} className="mr-1" />Buka Editor
+                    </Button>
+                    <Button
+                      size="sm" variant="outline" className="flex-1 h-8 text-xs"
+                      data-testid={`button-adapt-${page.id}`}
+                      onClick={() => { setSelectedPage(page); setAdaptPlatform(platform || "TikTok"); setAdaptOpen(true); }}
+                    >
+                      <RefreshCw size={12} className="mr-1" />Adaptasi
+                    </Button>
+                    <Button
+                      size="sm" variant="outline" className="flex-1 h-8 text-xs"
+                      data-testid={`button-rewrite-${page.id}`}
+                      onClick={() => { setSelectedPage(page); setRewriteOpen(true); }}
+                    >
+                      <Sparkles size={12} className="mr-1" />Tulis Ulang
+                    </Button>
                   </div>
                 </div>
-
-                {s.script && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{s.script}</p>
-                )}
-
-                <div className="flex gap-1.5 pt-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-8 text-xs"
-                    data-testid={`button-edit-saved-${s.notionPageId}`}
-                    onClick={() => openSavedForEdit(s)}
-                  >
-                    <Edit3 size={12} className="mr-1" />Buka Editor
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-8 text-xs"
-                    data-testid={`button-adapt-${s.notionPageId}`}
-                    onClick={() => { setSelectedSaved(s); setAdaptPlatform(s.platform); setAdaptOpen(true); }}
-                  >
-                    <RefreshCw size={12} className="mr-1" />Adaptasi
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-8 text-xs"
-                    data-testid={`button-rewrite-${s.notionPageId}`}
-                    onClick={() => { setSelectedSaved(s); setRewriteOpen(true); }}
-                  >
-                    <Sparkles size={12} className="mr-1" />Tulis Ulang
-                  </Button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -625,23 +697,15 @@ Penjelasan skor TRIBE:
             <div className="space-y-2">
               <Label>Platform Tujuan</Label>
               <Select value={adaptPlatform} onValueChange={setAdaptPlatform}>
-                <SelectTrigger data-testid="select-adapt-platform">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger data-testid="select-adapt-platform"><SelectValue /></SelectTrigger>
+                <SelectContent>{PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>Jenis Konten Tujuan</Label>
               <Select value={adaptJenis} onValueChange={setAdaptJenis}>
-                <SelectTrigger data-testid="select-adapt-jenis">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {JENIS_KONTEN.map((j) => <SelectItem key={j} value={j}>{j}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger data-testid="select-adapt-jenis"><SelectValue /></SelectTrigger>
+                <SelectContent>{JENIS_KONTEN.map((j) => <SelectItem key={j} value={j}>{j}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <Button className="w-full" data-testid="button-confirm-adapt" onClick={adaptScript} disabled={aiWorking}>
@@ -661,12 +725,8 @@ Penjelasan skor TRIBE:
             <div className="space-y-2">
               <Label>Tone Baru</Label>
               <Select value={rewriteTone} onValueChange={setRewriteTone}>
-                <SelectTrigger data-testid="select-rewrite-tone">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger data-testid="select-rewrite-tone"><SelectValue /></SelectTrigger>
+                <SelectContent>{TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <Button className="w-full" data-testid="button-confirm-rewrite" onClick={rewriteScript} disabled={aiWorking}>
