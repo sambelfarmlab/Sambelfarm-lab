@@ -361,29 +361,29 @@ export default function HomePage() {
                   >
                     <div
                       data-testid={`script-card-${page.id}`}
-                      className="bg-card border border-border rounded-xl p-3.5 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
+                      className="bg-card border border-border rounded-xl p-4 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
                       onClick={() => {
                         setDraft(pageToPartialDraft(page));
                         setLocation("/editor");
                       }}
                     >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-foreground truncate">{title}</div>
-                      {topik && judul && (
-                        <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>
-                      )}
-                      <div className="mt-1.5">
-                        <InlineDatePicker
-                          value={tanggal}
-                          onSave={(d) => handleDateChange(page, d)}
-                        />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm text-foreground truncate">{title}</div>
+                        {topik && judul && (
+                          <div className="text-xs text-muted-foreground mt-0.5 truncate">{topik}</div>
+                        )}
+                        <div className="mt-2">
+                          <InlineDatePicker
+                            value={tanggal}
+                            onSave={(d) => handleDateChange(page, d)}
+                          />
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      {platform && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">{platform}</Badge>}
-                      {tone && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">{tone}</Badge>}
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${statusColor(status)}`}>{status}</Badge>
-                    </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        {platform && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 whitespace-nowrap">{platform}</Badge>}
+                        {tone && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 whitespace-nowrap">{tone}</Badge>}
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 whitespace-nowrap ${statusColor(status)}`}>{status}</Badge>
+                      </div>
                     </div>
                   </SwipeableItem>
                 </motion.div>

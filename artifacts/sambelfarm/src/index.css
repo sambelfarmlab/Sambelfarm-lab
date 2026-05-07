@@ -150,4 +150,34 @@
     color: hsl(var(--muted-foreground));
     pointer-events: none;
   }
+
+  /* Normalize date inputs for Safari iOS and other browsers */
+  input[type="date"] {
+    position: relative;
+    min-height: 2.25rem; /* Matches h-9 */
+    display: flex;
+    align-items: center;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    bottom: 0;
+    color: transparent;
+    cursor: pointer;
+    height: auto;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: auto;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value {
+    min-height: 1.25rem;
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
 }

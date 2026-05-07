@@ -637,23 +637,26 @@ Format respons sebagai JSON (tanpa markdown code block):
                     transition={{ duration: 0.4, ease: "easeOut" }}
                   >
                     <SwipeableItem
-                      actions={[
+                      rightActions={[
                         {
                           label: "Download",
-                          icon: <FileDown size={16} />,
+                          icon: <FileDown size={18} />,
                           bgClass: "bg-sky-500",
+                          direction: "right",
                           onClick: () => handleDownloadPDF(page),
                         },
                         {
-                          label: "Ganti Tone",
-                          icon: <Palette size={16} />,
+                          label: "Tone",
+                          icon: <Palette size={18} />,
                           bgClass: "bg-amber-500",
+                          direction: "right",
                           onClick: () => { setPageForTone(page); setChangeToneOpen(true); },
                         },
                         {
                           label: "Hapus",
-                          icon: <Trash2 size={16} />,
+                          icon: <Trash2 size={18} />,
                           bgClass: "bg-red-500",
+                          direction: "right",
                           onClick: () => handleDelete(page),
                         },
                       ]}
@@ -685,23 +688,23 @@ Format respons sebagai JSON (tanpa markdown code block):
 
 
 
-                      <div className="flex gap-1.5 pt-1">
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" data-testid={`button-edit-saved-${page.id}`}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-edit-saved-${page.id}`}
                           onClick={() => { 
                             setEditingPageId(page.id); // SIMPAN ID NOTION SAAT TOMBOL INI DIKLIK
                             setDraft(pageToPartialDraft(page)); 
                             setShowAnalysis(getNumber(page, "Skor Viralitas") !== null); 
                             setTab("editor"); 
                           }}>
-                          <Edit3 size={12} className="mr-1" />Buka Editor
+                          <Edit3 size={10} className="mr-1 shrink-0" />Buka Editor
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" data-testid={`button-adapt-${page.id}`}
+                        <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-adapt-${page.id}`}
                           onClick={() => { setSelectedPage(page); setAdaptPlatform(platform || "TikTok"); setAdaptOpen(true); }}>
-                          <RefreshCw size={12} className="mr-1" />Adaptasi
+                          <RefreshCw size={10} className="mr-1 shrink-0" />Adaptasi
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" data-testid={`button-rewrite-${page.id}`}
+                        <Button size="sm" variant="outline" className="flex-1 min-w-[80px] h-8 px-2 text-[10px] sm:text-xs" data-testid={`button-rewrite-${page.id}`}
                           onClick={() => { setSelectedPage(page); setRewriteOpen(true); }}>
-                          <Sparkles size={12} className="mr-1" />Tulis Ulang
+                          <Sparkles size={10} className="mr-1 shrink-0" />Tulis Ulang
                         </Button>
                       </div>
                       </div>
