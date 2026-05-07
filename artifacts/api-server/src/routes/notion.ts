@@ -181,4 +181,38 @@ router.patch("/notion/pages/:pageId", async (req, res): Promise<void> => {
   res.json(data);
 });
 
+router.delete("/notion/pages/:pageId", async (req, res): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const pageId = Array.isArray(req.params.pageId) ? req.params.pageId[0] : req.params.pageId;
+  if (!pageId) {
+    res.status(400).json({ error: "Invalid page ID" });
+    return;
+  }
+
+  let headers: ReturnType<typeof getNotionHeaders>;
+  try {
+    headers = getNotionHeaders();
+  } catch (err) {
+    req.log.error({ err }, "Notion API key not configured");
+    res.status(500).json({ error: "Notion API key not configured" });
+    return;
+  }
+
+  const response = await fetch(`${NOTION_API_BASE}/pages/${pageId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ archived: true }),
+  });
+
+  const data = await response.json() as Record<string, unknown>;
+  if (!response.ok) {
+    req.log.warn({ status: response.status, data }, "Notion archive page failed");
+    res.status(response.status).json({ error: (data as { message?: string }).message ?? "Notion error" });
+    return;
+  }
+
+  res.json(data);
+});
+
 export default router;

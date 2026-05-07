@@ -186,6 +186,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: notionDeletePage
+      tags: [notion]
+      summary: Archive (soft-delete) a Notion page
+      parameters:
+        - name: pageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Page archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotionPageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:

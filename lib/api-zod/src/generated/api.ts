@@ -94,3 +94,16 @@ export const NotionUpdatePageResponse = zod.object({
   url: zod.string().optional(),
   properties: zod.object({}).passthrough().optional(),
 });
+
+/**
+ * @summary Archive (soft-delete) a Notion page
+ */
+export const NotionDeletePageParams = zod.object({
+  pageId: zod.coerce.string(),
+});
+
+export const NotionDeletePageResponse = zod.object({
+  id: zod.string(),
+  url: zod.string().optional(),
+  properties: zod.object({}).passthrough().optional(),
+});

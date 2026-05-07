@@ -609,3 +609,87 @@ export const useNotionUpdatePage = <
 > => {
   return useMutation(getNotionUpdatePageMutationOptions(options));
 };
+
+/**
+ * @summary Archive (soft-delete) a Notion page
+ */
+export const getNotionDeletePageUrl = (pageId: string) => {
+  return `/api/notion/pages/${pageId}`;
+};
+
+export const notionDeletePage = async (
+  pageId: string,
+  options?: RequestInit,
+): Promise<NotionPageResponse> => {
+  return customFetch<NotionPageResponse>(getNotionDeletePageUrl(pageId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getNotionDeletePageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof notionDeletePage>>,
+    TError,
+    { pageId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof notionDeletePage>>,
+  TError,
+  { pageId: string },
+  TContext
+> => {
+  const mutationKey = ["notionDeletePage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof notionDeletePage>>,
+    { pageId: string }
+  > = (props) => {
+    const { pageId } = props ?? {};
+
+    return notionDeletePage(pageId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type NotionDeletePageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof notionDeletePage>>
+>;
+
+export type NotionDeletePageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Archive (soft-delete) a Notion page
+ */
+export const useNotionDeletePage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof notionDeletePage>>,
+    TError,
+    { pageId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof notionDeletePage>>,
+  TError,
+  { pageId: string },
+  TContext
+> => {
+  return useMutation(getNotionDeletePageMutationOptions(options));
+};
