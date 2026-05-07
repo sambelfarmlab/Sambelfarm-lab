@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, useSpring, useTransform, animate } from "framer-motion";
 import { useNotionCreatePage, useNotionQuery, useNotionUpdatePage, useNotionDeletePage, useClaudeProxy } from "@workspace/api-client-react";
 import { getConfig } from "@/lib/config";
@@ -154,7 +154,24 @@ interface TribeResult {
 
 export default function EditorPage() {
   const { draft, setDraft, resetDraft } = useDraft();
-  const [tab, setTab] = useState<"editor" | "saved">("editor");
+  const [location, setLocation] = useLocation();
+  
+  // Ambil tab dari query param jika ada
+  const getInitialTab = () => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("tab");
+    return (t === "saved") ? "saved" : "editor";
+  };
+
+  const [tab, setTab] = useState<"editor" | "saved">(getInitialTab());
+
+  // Update URL saat tab berubah tanpa reload penuh
+  const handleTabChange = (newTab: "editor" | "saved") => {
+    setTab(newTab);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", newTab);
+    window.history.replaceState({}, "", url.toString());
+  };
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -432,7 +449,9 @@ Format respons sebagai JSON (tanpa markdown code block):
     );
   };
 
-  const filteredPages = filterTone === "all" ? notionPages : notionPages.filter((p) => getSelect(p, "Tone") === filterTone);
+  const filteredPages = useMemo(() => {
+    return filterTone === "all" ? notionPages : notionPages.filter((p) => getSelect(p, "Tone") === filterTone);
+  }, [notionPages, filterTone]);
 
   return (
     <div className="p-4 space-y-5">
@@ -447,7 +466,7 @@ Format respons sebagai JSON (tanpa markdown code block):
       <div className="flex gap-2 bg-muted rounded-xl p-1">
         {(["editor", "saved"] as const).map((t) => (
           <button
-            key={t} data-testid={`tab-${t}`} onClick={() => setTab(t)}
+            key={t} data-testid={`tab-${t}`} onClick={() => handleTabChange(t)}
             className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
           >
             {t === "editor" ? "Editor" : `Script Tersimpan${notionLoaded && notionPages.length > 0 ? ` (${notionPages.length})` : ""}`}

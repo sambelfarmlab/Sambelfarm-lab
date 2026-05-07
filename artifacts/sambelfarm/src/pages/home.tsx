@@ -264,7 +264,7 @@ export default function HomePage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-foreground">Script Terbaru</h2>
-          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7" onClick={() => setLocation("/editor")}>
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7" onClick={() => setLocation("/editor?tab=saved")}>
             Lihat semua
           </Button>
         </div>
