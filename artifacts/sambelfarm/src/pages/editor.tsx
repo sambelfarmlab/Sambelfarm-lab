@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import {
-  useNotionCreatePage,
-  useNotionUpdatePage,
-  useClaudeProxy,
-} from "@workspace/api-client-react";
-import { getConfig } from "@/lib/config";
+import { useNotionCreatePage, useNotionUpdatePage, useClaudeProxy } from "@workspace/api-client-react";
 import { useDraft } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
 import { Edit3, BookOpen, RotateCcw } from "lucide-react";
@@ -14,16 +9,14 @@ import { ContentDetailForm } from "@/components/features/content-detail-form";
 import { TribeAnalysisPanel } from "@/components/features/tribe-analysis-panel";
 import { SavedScriptsTab } from "@/components/features/saved-scripts-tab";
 import { useSavedPages } from "@/hooks/use-saved-pages";
-import { pageToPartialDraft, buildNotionProperties, getNumber } from "@/lib/notion-helpers";
+import { buildNotionProperties, pageToPartialDraft, getNumber } from "@/lib/notion-helpers";
 import type { NotionPage } from "@/lib/notion-helpers";
 
-/** Read the tab from the URL, default to "editor". */
 function getInitialTab(): "editor" | "saved" {
   const params = new URLSearchParams(window.location.search);
   return params.get("tab") === "saved" ? "saved" : "editor";
 }
 
-/** Sync selected tab to the URL query string without a page reload. */
 function syncTabToUrl(tab: string) {
   const url = new URL(window.location.href);
   url.searchParams.set("tab", tab);
@@ -34,7 +27,6 @@ export default function EditorPage() {
   const { draft, setDraft, resetDraft } = useDraft();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const config = getConfig();
 
   const [tab, setTab] = useState<"editor" | "saved">(getInitialTab);
   const [analyzing, setAnalyzing] = useState(false);
@@ -47,21 +39,10 @@ export default function EditorPage() {
   const notionUpdate = useNotionUpdatePage();
   const claudeProxy = useClaudeProxy();
 
-  const {
-    pages,
-    loaded,
-    fetchPages,
-    handleDateChange,
-    handleToneChange,
-    handleDelete,
-    handleDownloadPDF,
-  } = useSavedPages();
+  const { pages, loaded, fetchPages, handleDateChange, handleToneChange, handleDelete, handleDownloadPDF } = useSavedPages();
 
-  // Fetch saved pages whenever the "saved" tab is opened or manually refreshed
   useEffect(() => {
-    if (tab === "saved") {
-      fetchPages(30);
-    }
+    if (tab === "saved") fetchPages(30);
   }, [tab, refreshKey, fetchPages]);
 
   const handleTabChange = useCallback((newTab: "editor" | "saved") => {
@@ -69,7 +50,6 @@ export default function EditorPage() {
     syncTabToUrl(newTab);
   }, []);
 
-  /** Call Claude AI to analyse the current script with TRIBE v2 framework. */
   const analyzeTribe = async () => {
     if (!draft.script.trim()) return;
     setAnalyzing(true);
@@ -103,12 +83,10 @@ export default function EditorPage() {
     }
   };
 
-  /** Save or update the current draft to Notion. */
   const saveToNotion = () => {
     if (!draft.script.trim()) return;
     setSaving(true);
     const properties = buildNotionProperties(draft);
-
     const onSuccess = () => {
       setSaving(false);
       toast({ title: editingPageId ? "Pembaruan berhasil" : "Berhasil disimpan" });
@@ -123,19 +101,12 @@ export default function EditorPage() {
     };
 
     if (editingPageId) {
-      notionUpdate.mutate(
-        { pageId: editingPageId, data: { properties } as Record<string, string> },
-        { onSuccess, onError },
-      );
+      notionUpdate.mutate({ pageId: editingPageId, data: { properties } as Record<string, string> }, { onSuccess, onError });
     } else {
-      notionCreate.mutate(
-        { data: { parent: { database_id: "" }, properties } as Record<string, string> },
-        { onSuccess, onError },
-      );
+      notionCreate.mutate({ data: { parent: { database_id: "" }, properties } as Record<string, string> }, { onSuccess, onError });
     }
   };
 
-  /** Open a saved page in the editor tab for editing. */
   const handleEdit = (page: NotionPage) => {
     setEditingPageId(page.id);
     setDraft(pageToPartialDraft(page));
@@ -145,35 +116,22 @@ export default function EditorPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 min-h-screen bg-background text-foreground">
-      {/* Page header */}
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sambelfarm Lab</h1>
-          <p className="text-sm text-muted-foreground">
-            AI Content Strategist &amp; Script Editor
-          </p>
+          <p className="text-sm text-muted-foreground">AI Content Strategist &amp; Script Editor</p>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setLocation("/")}
-          className="rounded-full"
-        >
+        <Button variant="outline" size="icon" onClick={() => setLocation("/")} className="rounded-full">
           <RotateCcw size={18} />
         </Button>
       </header>
 
-      {/* Tab switcher */}
       <div className="flex p-1 bg-muted/50 rounded-xl mb-6">
         {(["editor", "saved"] as const).map((t) => (
           <button
             key={t}
             onClick={() => handleTabChange(t)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
-              tab === t
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             {t === "editor" ? <Edit3 size={16} /> : <BookOpen size={16} />}
             {t === "editor" ? "Editor" : "Tersimpan"}
@@ -181,7 +139,6 @@ export default function EditorPage() {
         ))}
       </div>
 
-      {/* Editor tab */}
       {tab === "editor" && (
         <div className="space-y-4 pb-4">
           <ContentDetailForm
@@ -193,16 +150,11 @@ export default function EditorPage() {
             onSave={saveToNotion}
           />
           {showAnalysis && (
-            <TribeAnalysisPanel
-              draft={draft}
-              open={showAnalysis}
-              onToggle={() => setShowAnalysis((v) => !v)}
-            />
+            <TribeAnalysisPanel draft={draft} open={showAnalysis} onToggle={() => setShowAnalysis((v) => !v)} />
           )}
         </div>
       )}
 
-      {/* Saved scripts tab */}
       {tab === "saved" && (
         <SavedScriptsTab
           pages={pages}
@@ -213,6 +165,7 @@ export default function EditorPage() {
           onDateChange={handleDateChange}
           onToneChange={handleToneChange}
           onDownload={handleDownloadPDF}
+          onAIUpdate={(pageId, patch) => setDraft(patch)}
         />
       )}
     </div>
