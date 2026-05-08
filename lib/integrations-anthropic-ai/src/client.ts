@@ -15,12 +15,7 @@ if (!apiKey) {
   );
 }
 
-const normalizedBaseURL = baseURL.replace(/\/+$/, "");
-const apiBaseURL = normalizedBaseURL.includes("/v1")
-  ? normalizedBaseURL
-  : `${normalizedBaseURL}/v1`;
-
 export const anthropic = new Anthropic({
   apiKey,
-  baseURL: apiBaseURL,
+  baseURL: baseURL.replace(/\/+$/, ""),
 });
