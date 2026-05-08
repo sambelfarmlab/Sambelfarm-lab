@@ -1,3 +1,4 @@
+import React from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -24,10 +25,13 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (!isAuthenticated) {
-    setLocation("/login");
-    return null;
-  }
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      setLocation("/login");
+    }
+  }, [isAuthenticated, setLocation]);
+
+  if (!isAuthenticated) return null;
 
   return (
     <Layout>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useNotionQuery, useNotionUpdatePage, useNotionDeletePage } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
@@ -211,11 +211,13 @@ export default function HomePage() {
     });
   };
 
-  const filteredPages = filterStatus === "all"
-    ? pages
-    : pages.filter((p) => getSelect(p, "Status Revisi") === filterStatus);
+  const filteredPages = useMemo(() => {
+    return filterStatus === "all"
+      ? pages
+      : pages.filter((p) => getSelect(p, "Status Revisi") === filterStatus);
+  }, [pages, filterStatus]);
 
-  const displayPages = filteredPages.slice(0, 6);
+  const displayPages = useMemo(() => filteredPages.slice(0, 6), [filteredPages]);
 
   const quickActions = [
     { label: "Brainstorm Ide", icon: Lightbulb, path: "/brainstorm", desc: "5 ide konten baru" },

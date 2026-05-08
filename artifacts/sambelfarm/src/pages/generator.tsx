@@ -38,10 +38,15 @@ export default function GeneratorPage() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!draft.jenisKonten) setDraft({ jenisKonten: "Reels" });
-    if (!draft.tone) setDraft({ tone: "Storytelling" });
-    if (!draft.platform) setDraft({ platform: "TikTok" });
-  }, []);
+    const updates: Partial<typeof draft> = {};
+    if (!draft.jenisKonten) updates.jenisKonten = "Reels";
+    if (!draft.tone) updates.tone = "Storytelling";
+    if (!draft.platform) updates.platform = "TikTok";
+    
+    if (Object.keys(updates).length > 0) {
+      setDraft(updates);
+    }
+  }, [draft.jenisKonten, draft.tone, draft.platform, setDraft]);
 
   const generate = () => {
     if (!draft.topik.trim()) {

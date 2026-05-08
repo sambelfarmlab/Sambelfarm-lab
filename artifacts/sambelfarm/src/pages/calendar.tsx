@@ -128,16 +128,21 @@ export default function CalendarPage() {
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
-  const dayMap = new Map<string, NotionPage[]>();
-  pages.forEach((page) => {
-    const dateVal = page.properties?.Tanggal?.date?.start;
-    if (!dateVal) return;
-    const key = dateVal.slice(0, 10);
-    if (!dayMap.has(key)) dayMap.set(key, []);
-    dayMap.get(key)!.push(page);
-  });
+  const dayMap = useMemo(() => {
+    const map = new Map<string, NotionPage[]>();
+    pages.forEach((page) => {
+      const dateVal = page.properties?.Tanggal?.date?.start;
+      if (!dateVal) return;
+      const key = dateVal.slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(page);
+    });
+    return map;
+  }, [pages]);
 
-  const selectedPages = selected ? dayMap.get(selected) ?? [] : [];
+  const selectedPages = useMemo(() => {
+    return selected ? dayMap.get(selected) ?? [] : [];
+  }, [selected, dayMap]);
 
   return (
     <div className="p-4 space-y-5">
