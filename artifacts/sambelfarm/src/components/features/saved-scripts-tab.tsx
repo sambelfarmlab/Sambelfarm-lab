@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,13 @@ import { addTokenUsage } from "@/lib/token-usage";
 import { useToast } from "@/hooks/use-toast";
 import { useDraft } from "@/lib/draft";
 
-const listVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
+export const STATUS_REVISI_OPTIONS = [
+  "Draft",
+  "Revisi",
+  "Final",
+  "Terjadwal",
+  "Dipublikasi",
+];
 
 interface Props {
   pages: NotionPage[];
@@ -27,13 +30,17 @@ interface Props {
   onDelete: (page: NotionPage) => void;
   onDateChange: (page: NotionPage, date: string) => void;
   onToneChange: (pageId: string, tone: string) => void;
+  onStatusChange: (pageId: string, status: string) => void;
   onDownload: (page: NotionPage) => void;
   onAIUpdate: (pageId: string, patch: Partial<import("@/lib/draft").Draft>) => void;
 }
 
-export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, onDateChange, onToneChange, onDownload, onAIUpdate }: Props) {
+export function SavedScriptsTab({
+  pages, loaded, onRefresh, onEdit, onDelete,
+  onDateChange, onToneChange, onStatusChange, onDownload, onAIUpdate,
+}: Props) {
   const [filterTone, setFilterTone] = useState("all");
-  const swipeableRefs = useRef<Array<{ reset: () => void } | null>>([]);
+  const [filterStatus, setFilterStatus] = useState("all");
   const claudeProxy = useClaudeProxy();
   const { toast } = useToast();
   const { setDraft } = useDraft();
@@ -45,13 +52,18 @@ export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, on
   const [rewriteOpen, setRewriteOpen] = useState(false);
   const [rewriteTone, setRewriteTone] = useState("Edukatif");
   const [changeToneOpen, setChangeToneOpen] = useState(false);
+  const [changeStatusOpen, setChangeStatusOpen] = useState(false);
   const [pageForTone, setPageForTone] = useState<NotionPage | null>(null);
+  const [pageForStatus, setPageForStatus] = useState<NotionPage | null>(null);
   const [aiWorking, setAiWorking] = useState(false);
 
   const filteredPages = useMemo(() => {
-    if (filterTone === "all") return pages;
-    return pages.filter((p) => getSelect(p, "Tone") === filterTone);
-  }, [pages, filterTone]);
+    return pages.filter((p) => {
+      const toneMatch = filterTone === "all" || getSelect(p, "Tone") === filterTone;
+      const statusMatch = filterStatus === "all" || getSelect(p, "Status Revisi") === filterStatus;
+      return toneMatch && statusMatch;
+    });
+  }, [pages, filterTone, filterStatus]);
 
   const handleAdapt = async () => {
     if (!selectedPage) return;
@@ -118,8 +130,27 @@ export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, on
     }
   };
 
+  const emptyMessage = () => {
+    if (filterTone !== "all" || filterStatus !== "all") {
+      const parts = [];
+      if (filterTone !== "all") parts.push(`tone "${filterTone}"`);
+      if (filterStatus !== "all") parts.push(`status "${filterStatus}"`);
+      return {
+        title: `Tidak ada script dengan ${parts.join(" dan ")}`,
+        sub: "Coba ubah filter.",
+      };
+    }
+    return {
+      title: "Belum ada script tersimpan",
+      sub: "Buat dan simpan script pertamamu dari halaman Editor.",
+    };
+  };
+
+  const msg = emptyMessage();
+
   return (
     <div className="space-y-3 pb-4">
+      {/* Filter row */}
       <div className="flex gap-2">
         <Select value={filterTone} onValueChange={setFilterTone}>
           <SelectTrigger className="flex-1 h-9 text-sm" data-testid="select-filter-tone">
@@ -127,44 +158,75 @@ export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, on
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Tone</SelectItem>
-            {TONES.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
+            {TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="flex-1 h-9 text-sm" data-testid="select-filter-status">
+            <SelectValue placeholder="Filter Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Status</SelectItem>
+            {STATUS_REVISI_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
         <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" data-testid="button-refresh-notion" onClick={onRefresh}>
           <RotateCcw size={14} />
         </Button>
       </div>
 
+      {/* List */}
       {!loaded ? (
-        <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
-      ) : filteredPages.length === 0 ? (
-        <div className="bg-muted/50 rounded-2xl p-8 text-center">
-          <BookOpen size={32} className="text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">{filterTone === "all" ? "Belum ada script tersimpan" : `Tidak ada script dengan tone ${filterTone}`}</p>
-          <p className="text-xs text-muted-foreground mt-1">{filterTone === "all" ? "Buat dan simpan script pertamamu dari halaman Editor." : "Coba ubah filter tone."}</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
         </div>
+      ) : filteredPages.length === 0 ? (
+        <motion.div
+          key="empty"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="bg-muted/50 rounded-2xl p-8 text-center"
+        >
+          <BookOpen size={32} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm font-medium text-foreground">{msg.title}</p>
+          <p className="text-xs text-muted-foreground mt-1">{msg.sub}</p>
+        </motion.div>
       ) : (
-        <AnimatePresence mode="popLayout">
-          <motion.div className="space-y-3" initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.1 }} variants={listVariants}>
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout" initial={false}>
             {filteredPages.map((page, index) => (
-              <SavedScriptCard
+              <motion.div
                 key={page.id}
-                page={page}
-                swipeRef={(el) => { swipeableRefs.current[index] = el; }}
-                onEdit={onEdit}
-                onAdapt={(p) => { setSelectedPage(p); setAdaptPlatform(getSelect(p, "Platform") || "TikTok"); setAdaptOpen(true); }}
-                onRewrite={(p) => { setSelectedPage(p); setRewriteOpen(true); }}
-                onDelete={onDelete}
-                onChangeTone={(p) => { setPageForTone(p); setChangeToneOpen(true); }}
-                onDownload={onDownload}
-                onDateChange={onDateChange}
-              />
+                layout
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -12, scale: 0.97 }}
+                transition={{ duration: 0.22, ease: "easeOut", delay: index < 6 ? index * 0.04 : 0 }}
+              >
+                <SavedScriptCard
+                  page={page}
+                  onEdit={onEdit}
+                  onAdapt={(p) => { setSelectedPage(p); setAdaptPlatform(getSelect(p, "Platform") || "TikTok"); setAdaptOpen(true); }}
+                  onRewrite={(p) => { setSelectedPage(p); setRewriteOpen(true); }}
+                  onDelete={onDelete}
+                  onChangeTone={(p) => { setPageForTone(p); setChangeToneOpen(true); }}
+                  onChangeStatus={(p) => { setPageForStatus(p); setChangeStatusOpen(true); }}
+                  onDownload={onDownload}
+                  onDateChange={onDateChange}
+                />
+              </motion.div>
             ))}
-            <p className="text-[10px] text-muted-foreground text-center mt-1">Geser kartu ke Kiri (Hapus) &amp; Kanan (Ganti Tone/Download)</p>
-          </motion.div>
-        </AnimatePresence>
+          </AnimatePresence>
+          <p className="text-[10px] text-muted-foreground text-center mt-1">
+            Geser kartu ke Kiri (Hapus) &amp; Kanan (Tone/Status/Download)
+          </p>
+        </div>
       )}
 
+      {/* Adapt dialog */}
       <Dialog open={adaptOpen} onOpenChange={setAdaptOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Adaptasi Script</DialogTitle></DialogHeader>
@@ -184,11 +246,14 @@ export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, on
                 <SelectContent>{JENIS_KONTEN.map((j) => <SelectItem key={j} value={j}>{j}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" data-testid="button-confirm-adapt" onClick={handleAdapt} disabled={aiWorking}>{aiWorking ? "Mengadaptasi..." : "Adaptasi Script"}</Button>
+            <Button className="w-full" data-testid="button-confirm-adapt" onClick={handleAdapt} disabled={aiWorking}>
+              {aiWorking ? "Mengadaptasi..." : "Adaptasi Script"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Rewrite dialog */}
       <Dialog open={rewriteOpen} onOpenChange={setRewriteOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Tulis Ulang Script</DialogTitle></DialogHeader>
@@ -201,19 +266,63 @@ export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, on
                 <SelectContent>{TONES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" data-testid="button-confirm-rewrite" onClick={handleRewrite} disabled={aiWorking}>{aiWorking ? "Menulis ulang..." : "Tulis Ulang Script"}</Button>
+            <Button className="w-full" data-testid="button-confirm-rewrite" onClick={handleRewrite} disabled={aiWorking}>
+              {aiWorking ? "Menulis ulang..." : "Tulis Ulang Script"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Change tone dialog */}
       <Dialog open={changeToneOpen} onOpenChange={setChangeToneOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Ganti Tone</DialogTitle></DialogHeader>
-          {pageForTone && <p className="text-xs text-muted-foreground -mt-2 truncate">{getRichText(pageForTone, "Judul") || getTitle(pageForTone) || "Script"}</p>}
+          {pageForTone && (
+            <p className="text-xs text-muted-foreground -mt-2 truncate">
+              {getRichText(pageForTone, "Judul") || getTitle(pageForTone) || "Script"}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2 pt-1">
             {TONES.map((t) => (
-              <Button key={t} variant={pageForTone && getSelect(pageForTone, "Tone") === t ? "default" : "outline"} className="h-11" onClick={() => { if (!pageForTone) return; onToneChange(pageForTone.id, t); setChangeToneOpen(false); }}>
+              <Button
+                key={t}
+                variant={pageForTone && getSelect(pageForTone, "Tone") === t ? "default" : "outline"}
+                className="h-11"
+                onClick={() => {
+                  if (!pageForTone) return;
+                  onToneChange(pageForTone.id, t);
+                  setChangeToneOpen(false);
+                }}
+              >
                 {t}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change status dialog */}
+      <Dialog open={changeStatusOpen} onOpenChange={setChangeStatusOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Ubah Status Revisi</DialogTitle></DialogHeader>
+          {pageForStatus && (
+            <p className="text-xs text-muted-foreground -mt-2 truncate">
+              {getRichText(pageForStatus, "Judul") || getTitle(pageForStatus) || "Script"}
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            {STATUS_REVISI_OPTIONS.map((s) => (
+              <Button
+                key={s}
+                variant={pageForStatus && getSelect(pageForStatus, "Status Revisi") === s ? "default" : "outline"}
+                className="h-11"
+                onClick={() => {
+                  if (!pageForStatus) return;
+                  onStatusChange(pageForStatus.id, s);
+                  setChangeStatusOpen(false);
+                }}
+              >
+                {s}
               </Button>
             ))}
           </div>

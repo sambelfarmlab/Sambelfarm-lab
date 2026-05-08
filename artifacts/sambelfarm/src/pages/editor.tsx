@@ -40,7 +40,7 @@ export default function EditorPage() {
   const notionUpdate = useNotionUpdatePage();
   const claudeProxy = useClaudeProxy();
 
-  const { pages, loaded, fetchPages, handleDateChange, handleToneChange, handleDelete, handleDownloadPDF } = useSavedPages();
+  const { pages, loaded, fetchPages, handleDateChange, handleToneChange, handleStatusChange, handleDelete, handleDownloadPDF } = useSavedPages();
 
   useEffect(() => {
     if (tab === "saved") fetchPages(30);
@@ -167,6 +167,7 @@ export default function EditorPage() {
           onDelete={handleDelete}
           onDateChange={handleDateChange}
           onToneChange={handleToneChange}
+          onStatusChange={handleStatusChange}
           onDownload={handleDownloadPDF}
           onAIUpdate={(pageId, patch) => setDraft(patch)}
         />
