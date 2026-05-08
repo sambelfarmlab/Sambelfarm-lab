@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useNotionCreatePage, useNotionUpdatePage, useClaudeProxy } from "@workspace/api-client-react";
+import { addTokenUsage } from "@/lib/token-usage";
 import { useDraft } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
 import { Edit3, BookOpen, RotateCcw } from "lucide-react";
@@ -60,7 +61,9 @@ export default function EditorPage() {
           system: "Kamu adalah pakar viralitas konten.",
         },
       });
-      const result = JSON.parse(res as string);
+      const resData = res as typeof res & { usage?: { input_tokens: number; output_tokens: number } };
+      if (resData.usage) addTokenUsage(resData.usage.input_tokens, resData.usage.output_tokens);
+      const result = JSON.parse(res.result);
       setDraft({
         skorViralitas: result.skor_viralitas,
         analisisAI: result.analisis_ai,

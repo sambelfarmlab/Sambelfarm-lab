@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useClaudeProxy } from "@workspace/api-client-react";
+import { addTokenUsage } from "@/lib/token-usage";
 import { getConfig } from "@/lib/config";
 import { useDraft } from "@/lib/draft";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,8 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
       { data: { system: systemPrompt, prompt, model: config.aiModel } },
       {
         onSuccess: (data) => {
+          const d = data as typeof data & { usage?: { input_tokens: number; output_tokens: number } };
+          if (d.usage) addTokenUsage(d.usage.input_tokens, d.usage.output_tokens);
           setDraft({ script: data.result });
           setLocation("/editor");
         },

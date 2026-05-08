@@ -10,6 +10,7 @@ import { SavedScriptCard } from "@/components/features/saved-script-card";
 import { type NotionPage, getRichText, getTitle, getSelect } from "@/lib/notion-helpers";
 import { PLATFORMS, JENIS_KONTEN, TONES } from "@/components/features/content-detail-form";
 import { useClaudeProxy } from "@workspace/api-client-react";
+import { addTokenUsage } from "@/lib/token-usage";
 import { useToast } from "@/hooks/use-toast";
 import { useDraft } from "@/lib/draft";
 
@@ -63,7 +64,9 @@ export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, on
           system: "Kamu adalah ahli adaptasi konten short-form.",
         },
       });
-      const result = JSON.parse(res as string) as { script?: string; analisis_ai?: string; rekomendasi?: string; skor_viralitas?: number; trigger?: number; resonance?: number; impact?: number; behavior?: number; engagement?: number; caption_tiktok?: string; caption_instagram?: string; caption_yt_shorts?: string };
+      const adaptData = res as typeof res & { usage?: { input_tokens: number; output_tokens: number } };
+      if (adaptData.usage) addTokenUsage(adaptData.usage.input_tokens, adaptData.usage.output_tokens);
+      const result = JSON.parse(res.result) as { script?: string; analisis_ai?: string; rekomendasi?: string; skor_viralitas?: number; trigger?: number; resonance?: number; impact?: number; behavior?: number; engagement?: number; caption_tiktok?: string; caption_instagram?: string; caption_yt_shorts?: string };
       const patch = {
         script: result.script ?? script,
         analisisAI: result.analisis_ai ?? "",
@@ -100,7 +103,9 @@ export function SavedScriptsTab({ pages, loaded, onRefresh, onEdit, onDelete, on
           system: "Kamu adalah copywriter konten pendek.",
         },
       });
-      const result = JSON.parse(res as string) as { script?: string };
+      const rewriteData = res as typeof res & { usage?: { input_tokens: number; output_tokens: number } };
+      if (rewriteData.usage) addTokenUsage(rewriteData.usage.input_tokens, rewriteData.usage.output_tokens);
+      const result = JSON.parse(res.result) as { script?: string };
       const patch = { script: result.script ?? script };
       onAIUpdate(selectedPage.id, patch);
       setDraft(patch);

@@ -42,17 +42,28 @@ router.post("/claude", async (req, res): Promise<void> => {
     { role: "user", content: prompt },
   ];
 
-  const response = await anthropic.messages.create({
-    model: selectedModel,
-    max_tokens: 8192,
-    ...(system ? { system } : {}),
-    messages,
-  });
+  try {
+    const response = await anthropic.messages.create({
+      model: selectedModel,
+      max_tokens: 8192,
+      ...(system ? { system } : {}),
+      messages,
+    });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  const result = textBlock && textBlock.type === "text" ? textBlock.text : "";
+    const textBlock = response.content.find((b) => b.type === "text");
+    const result = textBlock && textBlock.type === "text" ? textBlock.text : "";
 
-  res.json({ result });
+    res.json({
+      result,
+      usage: {
+        input_tokens: response.usage.input_tokens,
+        output_tokens: response.usage.output_tokens,
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: message });
+  }
 });
 
 export default router;
