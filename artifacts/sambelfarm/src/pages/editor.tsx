@@ -224,7 +224,6 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
         ? "text-secondary"
         : "text-accent";
 
-  // Animasi angka count-up
   const count = useSpring(0, { stiffness: 60, damping: 20 });
   const displayValue = useTransform(count, (latest) => Math.round(latest));
   const textRef = useRef<HTMLSpanElement>(null);
@@ -279,7 +278,6 @@ export default function EditorPage() {
   const { draft, setDraft, resetDraft } = useDraft();
   const [location, setLocation] = useLocation();
 
-  // Ambil tab dari query param jika ada
   const getInitialTab = () => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab");
@@ -288,13 +286,13 @@ export default function EditorPage() {
 
   const [tab, setTab] = useState<"editor" | "saved">(getInitialTab());
 
-  // Update URL saat tab berubah tanpa reload penuh
   const handleTabChange = (newTab: "editor" | "saved") => {
     setTab(newTab);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", newTab);
     window.history.replaceState({}, "", url.toString());
   };
+
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -313,7 +311,6 @@ export default function EditorPage() {
   const [notionLoaded, setNotionLoaded] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // STATE BARU: Menyimpan ID Notion saat sedang edit data lama
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
 
   const notionCreate = useNotionCreatePage();
@@ -327,7 +324,7 @@ export default function EditorPage() {
   useEffect(() => {
     if (tab === "saved") {
       setNotionLoaded(false);
-      swipeableRefs.current = []; // Reset refs on tab change to avoid stale refs
+      swipeableRefs.current = []; 
       notionQuery.mutate(
         {
           data: {
@@ -512,33 +509,51 @@ export default function EditorPage() {
       TRIBE_Engagement: { number: draft.tribeEngagement },
     };
 
-    editingPageId
-      ? notionUpdate.mutate({
+    if (editingPageId) {
+      notionUpdate.mutate(
+        {
           pageId: editingPageId,
           data: { properties } as Record<string, string>,
-        })
-      : notionCreate.mutate({
-          data: { parent: { database_id: "" }, properties } as Record<
-            string,
-            string
-          >,
-        });
-
-    // Note: implementation here simplified for the fix focus
-    setSaving(false);
-    toast({
-      title: editingPageId ? "Pembaruan berhasil" : "Berhasil disimpan",
-    });
-    if (!editingPageId) resetDraft();
-    setTab("saved");
-    setRefreshKey((k) => k + 1);
+        },
+        {
+          onSuccess: () => {
+            setSaving(false);
+            toast({ title: "Pembaruan berhasil" });
+            setTab("saved");
+            setRefreshKey((k) => k + 1);
+          },
+          onError: () => {
+            setSaving(false);
+            toast({ title: "Gagal memperbarui", variant: "destructive" });
+          },
+        }
+      );
+    } else {
+      notionCreate.mutate(
+        {
+          data: { parent: { database_id: "" }, properties } as Record<string, string>,
+        },
+        {
+          onSuccess: () => {
+            setSaving(false);
+            toast({ title: "Berhasil disimpan" });
+            resetDraft();
+            setTab("saved");
+            setRefreshKey((k) => k + 1);
+          },
+          onError: () => {
+            setSaving(false);
+            toast({ title: "Gagal menyimpan", variant: "destructive" });
+          },
+        }
+      );
+    }
   };
 
   const adaptScript = async () => {
     if (!selectedPage) return;
     setAiWorking(true);
     try {
-      // Mock AI call
       setAdaptOpen(false);
       toast({ title: "Script berhasil diadaptasi" });
     } finally {
@@ -550,7 +565,6 @@ export default function EditorPage() {
     if (!selectedPage) return;
     setAiWorking(true);
     try {
-      // Mock AI call
       setRewriteOpen(false);
       toast({ title: "Script berhasil ditulis ulang" });
     } finally {
@@ -623,7 +637,7 @@ export default function EditorPage() {
                   data-testid="input-tanggal"
                   value={draft.tanggal}
                   onChange={(e) => setDraft({ tanggal: e.target.value })}
-                  className="h-9 text-sm appearance-none"
+                  className="h-9 min-h-[36px] max-h-[36px] text-sm block w-full py-1.5"
                 />
               </div>
             </div>
@@ -973,14 +987,16 @@ export default function EditorPage() {
                         ref={(el) => {
                           swipeableRefs.current[index] = el;
                         }}
-                        rightActions={[
+                        leftActions={[
                           {
-                            label: "Download",
-                            icon: <FileDown size={18} />,
-                            bgClass: "bg-sky-500",
-                            direction: "right",
-                            onClick: () => handleDownloadPDF(page),
+                            label: "Hapus",
+                            icon: <Trash2 size={18} />,
+                            bgClass: "bg-red-500",
+                            direction: "left",
+                            onClick: () => handleDelete(page),
                           },
+                        ]}
+                        rightActions={[
                           {
                             label: "Tone",
                             icon: <Palette size={18} />,
@@ -992,11 +1008,11 @@ export default function EditorPage() {
                             },
                           },
                           {
-                            label: "Hapus",
-                            icon: <Trash2 size={18} />,
-                            bgClass: "bg-red-500",
+                            label: "Download",
+                            icon: <FileDown size={18} />,
+                            bgClass: "bg-sky-500",
                             direction: "right",
-                            onClick: () => handleDelete(page),
+                            onClick: () => handleDownloadPDF(page),
                           },
                         ]}
                       >
@@ -1060,11 +1076,11 @@ export default function EditorPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-2 pt-1.5">
+                          <div className="grid grid-cols-3 gap-2 pt-3 mt-2 border-t border-border/50">
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="flex-1 min-w-[85px] h-9 sm:h-8 px-2 text-[10px] sm:text-xs"
+                              variant="ghost"
+                              className="h-8 text-[10px] sm:text-xs px-1 bg-muted/40 hover:bg-muted"
                               data-testid={`button-edit-saved-${page.id}`}
                               onClick={() => {
                                 setEditingPageId(page.id);
@@ -1075,13 +1091,13 @@ export default function EditorPage() {
                                 setTab("editor");
                               }}
                             >
-                              <Edit3 size={12} className="mr-1 shrink-0" />
-                              Buka Editor
+                              <Edit3 size={14} className="mr-1.5 shrink-0" />
+                              Editor
                             </Button>
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="flex-1 min-w-[85px] h-9 sm:h-8 px-2 text-[10px] sm:text-xs"
+                              variant="ghost"
+                              className="h-8 text-[10px] sm:text-xs px-1 bg-muted/40 hover:bg-muted"
                               data-testid={`button-adapt-${page.id}`}
                               onClick={() => {
                                 setSelectedPage(page);
@@ -1089,20 +1105,20 @@ export default function EditorPage() {
                                 setAdaptOpen(true);
                               }}
                             >
-                              <RefreshCw size={12} className="mr-1 shrink-0" />
+                              <RefreshCw size={14} className="mr-1.5 shrink-0" />
                               Adaptasi
                             </Button>
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="flex-1 min-w-[85px] h-9 sm:h-8 px-2 text-[10px] sm:text-xs"
+                              variant="ghost"
+                              className="h-8 text-[10px] sm:text-xs px-1 bg-muted/40 hover:bg-muted"
                               data-testid={`button-rewrite-${page.id}`}
                               onClick={() => {
                                 setSelectedPage(page);
                                 setRewriteOpen(true);
                               }}
                             >
-                              <Sparkles size={12} className="mr-1 shrink-0" />
+                              <Sparkles size={14} className="mr-1.5 shrink-0" />
                               Tulis Ulang
                             </Button>
                           </div>
@@ -1112,7 +1128,7 @@ export default function EditorPage() {
                   );
                 })}
                 <p className="text-[10px] text-muted-foreground text-center mt-1">
-                  Geser kartu ke kiri untuk opsi tambahan
+                  Geser kartu ke Kiri (Hapus) & Kanan (Ganti Tone/Download)
                 </p>
               </motion.div>
             </AnimatePresence>
