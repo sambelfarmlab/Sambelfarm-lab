@@ -31,7 +31,7 @@ export function InlineDatePicker({ value, onSave }: Props) {
 
   return (
     <button
-      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+      className="flex h-9 items-center gap-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md"
       onClick={(e) => {
         e.stopPropagation();
         setEditing(true);
