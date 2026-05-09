@@ -18,7 +18,7 @@ export function InlineDatePicker({ value, onSave }: Props) {
         type="date"
         value={val}
         autoFocus
-        className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm appearance-none"
+        className="text-[10px] border border-primary/50 rounded px-1.5 bg-background h-5 appearance-none"
         onChange={(e) => setVal(e.target.value)}
         onBlur={() => {
           setEditing(false);
@@ -31,15 +31,15 @@ export function InlineDatePicker({ value, onSave }: Props) {
 
   return (
     <button
-      className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm text-muted-foreground hover:text-foreground transition-colors"
+      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
       onClick={(e) => {
         e.stopPropagation();
         setEditing(true);
         setVal(value);
       }}
     >
-      <CalendarDays size={14} className="shrink-0" />
-      <span className={`truncate ${value ? "" : "italic"}`}>
+      <CalendarDays size={9} />
+      <span className={value ? "" : "italic"}>
         {value ? formatDate(value) : "Tambah tanggal"}
       </span>
     </button>
