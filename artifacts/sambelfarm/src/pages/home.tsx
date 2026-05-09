@@ -1,12 +1,14 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { InlineDatePicker } from "@/components/features/inline-date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useDraft } from "@/lib/draft";
+import { STATUS_REVISI_OPTIONS } from "@/components/features/content-detail-form";
 import {
   Lightbulb,
   FileText,
@@ -14,6 +16,7 @@ import {
   Calendar,
   LogOut,
   Leaf,
+  Check,
 } from "lucide-react";
 import { useSavedPages } from "@/hooks/use-saved-pages";
 import {
@@ -32,24 +35,33 @@ const QUICK_ACTIONS = [
   { label: "Kalender", icon: Calendar, path: "/calendar", desc: "Jadwal konten" },
 ];
 
+const STATUS_COLORS: Record<string, string> = {
+  Draft: "bg-muted text-muted-foreground border-border",
+  Revisi: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+  Final: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+  Terjadwal: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800",
+  Dipublikasi: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
+};
+
 export default function HomePage() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
   const { toast: _toast } = useToast();
   const { setDraft } = useDraft();
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
 
   const {
     pages,
     loaded,
     fetchPages,
     handleDateChange,
+    handleStatusChange,
   } = useSavedPages();
 
   useEffect(() => {
     fetchPages(20);
   }, [fetchPages]);
 
-  // Max 5 most recent scripts
   const displayPages = useMemo(() => pages.slice(0, 5), [pages]);
 
   return (
@@ -110,7 +122,6 @@ export default function HomePage() {
           </Button>
         </div>
 
-        {/* Loading / empty / list */}
         {!loaded ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
@@ -120,7 +131,7 @@ export default function HomePage() {
         ) : displayPages.length === 0 ? (
           <div className="bg-muted/50 rounded-2xl p-5 text-center">
             <p className="text-sm text-muted-foreground">
-              "Belum ada script tersimpan di Notion."
+              Belum ada script tersimpan di Notion.
             </p>
           </div>
         ) : (
@@ -131,7 +142,9 @@ export default function HomePage() {
               const title = judul || topik || "Tanpa Judul";
               const tone = getSelect(page, "Tone");
               const platform = getSelect(page, "Platform");
+              const statusRevisi = getSelect(page, "Status Revisi");
               const tanggal = getDate(page, "Tanggal");
+              const popoverKey = page.id;
 
               return (
                 <div
@@ -159,20 +172,71 @@ export default function HomePage() {
                       />
                     </div>
                   </div>
-                  {(platform || tone) && (
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      {platform && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                          {platform}
-                        </Badge>
-                      )}
-                      {tone && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                          {tone}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+
+                  {/* Badges column — all clickable */}
+                  <div
+                    className="flex flex-col items-end gap-1 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {platform && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                        {platform}
+                      </Badge>
+                    )}
+                    {tone && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                        {tone}
+                      </Badge>
+                    )}
+
+                    {/* Status Revisi — clickable popover */}
+                    <Popover
+                      open={openPopover === popoverKey}
+                      onOpenChange={(open) => setOpenPopover(open ? popoverKey : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          className={`text-[10px] px-1.5 h-5 rounded-full border font-medium cursor-pointer transition-opacity hover:opacity-80 ${
+                            statusRevisi
+                              ? (STATUS_COLORS[statusRevisi] ?? "bg-muted text-muted-foreground border-border")
+                              : "bg-muted/60 text-muted-foreground border-dashed border-border"
+                          }`}
+                        >
+                          {statusRevisi ?? "Set status"}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-40 p-1.5"
+                        align="end"
+                        side="bottom"
+                      >
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-1">
+                          Status Revisi
+                        </p>
+                        {STATUS_REVISI_OPTIONS.map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => {
+                              handleStatusChange(page.id, opt);
+                              setOpenPopover(null);
+                            }}
+                            className="w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md hover:bg-muted transition-colors"
+                          >
+                            <span
+                              className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                                STATUS_COLORS[opt] ?? "bg-muted text-muted-foreground border-border"
+                              }`}
+                            >
+                              {opt}
+                            </span>
+                            {statusRevisi === opt && (
+                              <Check size={12} className="text-primary shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               );
             })}
