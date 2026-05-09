@@ -1,16 +1,9 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { InlineDatePicker } from "@/components/features/inline-date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useDraft } from "@/lib/draft";
@@ -32,8 +25,6 @@ import {
   pageToPartialDraft,
 } from "@/lib/notion-helpers";
 
-const STATUS_OPTIONS = ["Draft", "Revisi", "Terjadwal", "Final", "Dipublikasi"];
-
 const QUICK_ACTIONS = [
   { label: "Brainstorm Ide", icon: Lightbulb, path: "/brainstorm", desc: "5 ide konten baru" },
   { label: "Buat Script", icon: FileText, path: "/generator", desc: "Generate naskah" },
@@ -47,8 +38,6 @@ export default function HomePage() {
   const { toast: _toast } = useToast();
   const { setDraft } = useDraft();
 
-  const [filterStatus, setFilterStatus] = useState("all");
-
   const {
     pages,
     loaded,
@@ -60,16 +49,8 @@ export default function HomePage() {
     fetchPages(20);
   }, [fetchPages]);
 
-  const filteredPages = useMemo(
-    () =>
-      filterStatus === "all"
-        ? pages
-        : pages.filter((p) => getSelect(p, "Status Revisi") === filterStatus),
-    [pages, filterStatus],
-  );
-
   // Max 5 most recent scripts
-  const displayPages = useMemo(() => filteredPages.slice(0, 5), [filteredPages]);
+  const displayPages = useMemo(() => pages.slice(0, 5), [pages]);
 
   return (
     <div className="p-4 space-y-6">
@@ -117,31 +98,16 @@ export default function HomePage() {
 
       {/* Recent scripts section */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center mb-3">
           <h2 className="font-semibold text-foreground">Script Terbaru</h2>
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-muted-foreground h-7"
+            className="text-xs text-muted-foreground h-7 ml-2 px-0"
             onClick={() => setLocation("/editor?tab=saved")}
           >
             Lihat semua
           </Button>
-        </div>
-
-        {/* Status filter */}
-        <div className="mb-3">
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-status">
-              <SelectValue placeholder="Filter Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Loading / empty / list */}
@@ -154,9 +120,7 @@ export default function HomePage() {
         ) : displayPages.length === 0 ? (
           <div className="bg-muted/50 rounded-2xl p-5 text-center">
             <p className="text-sm text-muted-foreground">
-              {filterStatus === "all"
-                ? "Belum ada script tersimpan di Notion."
-                : `Tidak ada script dengan status "${filterStatus}".`}
+              "Belum ada script tersimpan di Notion."
             </p>
           </div>
         ) : (
