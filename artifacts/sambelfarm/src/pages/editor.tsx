@@ -124,7 +124,20 @@ export default function EditorPage() {
           <h1 className="text-2xl font-bold tracking-tight">Sambelfarm Lab</h1>
           <p className="text-sm text-muted-foreground">AI Content Strategist &amp; Script Editor</p>
         </div>
-        <Button variant="outline" size="icon" onClick={() => setLocation("/")} className="rounded-full">
+        <Button
+          variant="outline"
+          size="icon"
+          title={tab === "editor" ? "Reset form" : "Refresh daftar"}
+          onClick={() => {
+            if (tab === "editor") {
+              resetDraft();
+              setEditingPageId(null);
+            } else {
+              setRefreshKey((k) => k + 1);
+            }
+          }}
+          className="rounded-full"
+        >
           <RotateCcw size={18} />
         </Button>
       </header>

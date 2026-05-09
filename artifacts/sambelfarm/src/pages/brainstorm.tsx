@@ -97,15 +97,16 @@ Pastikan semua dalam Bahasa Indonesia yang natural dan engaging.${config.customP
         <p className="text-sm text-muted-foreground mt-0.5">Masukkan keyword, dapatkan 5 ide konten</p>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="keyword">Keyword / Topik</Label>
+      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="keyword" className="text-xs">Keyword / Topik</Label>
           <Input
             id="keyword"
             data-testid="input-keyword"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="Contoh: sambal bawang, panen cabai, tips berkebun..."
+            className="h-9 text-sm"
             onKeyDown={(e) => e.key === "Enter" && generate()}
           />
         </div>

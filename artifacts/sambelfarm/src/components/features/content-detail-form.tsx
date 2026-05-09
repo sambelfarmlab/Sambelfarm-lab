@@ -75,7 +75,7 @@ export function ContentDetailForm({
               data-testid="input-tanggal"
               value={draft.tanggal}
               onChange={(e) => onDraftChange({ tanggal: e.target.value })}
-              className="h-9 min-h-[36px] max-h-[36px] text-sm block w-full py-1.5"
+              className="h-9 text-sm"
             />
           </div>
         </div>

@@ -115,8 +115,8 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="topik">
+        <div className="space-y-1.5">
+          <Label htmlFor="topik" className="text-xs">
             Topik <span className="text-accent">*</span>
           </Label>
           <Input
@@ -125,17 +125,19 @@ ${config.customPrompt ? `Instruksi khusus: ${config.customPrompt}` : ""}`;
             value={draft.topik}
             onChange={(e) => setDraft({ topik: e.target.value })}
             placeholder="Contoh: cara membuat sambal bawang goreng..."
+            className="h-9 text-sm"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="judul">Judul Konten</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="judul" className="text-xs">Judul Konten</Label>
           <Input
             id="judul"
             data-testid="input-judul"
             value={draft.judul}
             onChange={(e) => setDraft({ judul: e.target.value })}
             placeholder="Judul yang catchy (opsional)"
+            className="h-9 text-sm"
           />
         </div>
 

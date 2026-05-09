@@ -11,13 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { SwipeableItem } from "@/components/swipeable-item";
 import { InlineDatePicker } from "@/components/features/inline-date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useDraft } from "@/lib/draft";
@@ -28,10 +21,6 @@ import {
   Calendar,
   LogOut,
   Leaf,
-  FileDown,
-  RefreshCw,
-  Trash2,
-  CheckCircle2,
 } from "lucide-react";
 import { useSavedPages } from "@/hooks/use-saved-pages";
 import {
@@ -43,15 +32,7 @@ import {
   pageToPartialDraft,
 } from "@/lib/notion-helpers";
 
-const STATUS_OPTIONS = ["Draft", "Terjadwal", "Final", "Dipublikasi"];
-
-function statusColor(status: string) {
-  if (status === "Final" || status === "Dipublikasi")
-    return "bg-primary/10 text-primary border-primary/20";
-  if (status === "Terjadwal")
-    return "bg-accent/10 text-accent border-accent/20";
-  return "bg-muted text-muted-foreground border-border";
-}
+const STATUS_OPTIONS = ["Draft", "Revisi", "Terjadwal", "Final", "Dipublikasi"];
 
 const QUICK_ACTIONS = [
   { label: "Brainstorm Ide", icon: Lightbulb, path: "/brainstorm", desc: "5 ide konten baru" },
@@ -63,25 +44,18 @@ const QUICK_ACTIONS = [
 export default function HomePage() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
   const { setDraft } = useDraft();
 
   const [filterStatus, setFilterStatus] = useState("all");
-  const [changeStatusOpen, setChangeStatusOpen] = useState(false);
-  const [pageForStatus, setPageForStatus] = useState<NotionPage | null>(null);
 
   const {
     pages,
     loaded,
     fetchPages,
     handleDateChange,
-    handleStatusChange,
-    handleDelete,
-    handlePublish,
-    handleDownloadPDF,
   } = useSavedPages();
 
-  // Load pages on mount (only once)
   useEffect(() => {
     fetchPages(20);
   }, [fetchPages]);
@@ -94,8 +68,8 @@ export default function HomePage() {
     [pages, filterStatus],
   );
 
-  // Show only the latest 6 on the home screen to keep it snappy
-  const displayPages = useMemo(() => filteredPages.slice(0, 6), [filteredPages]);
+  // Max 5 most recent scripts
+  const displayPages = useMemo(() => filteredPages.slice(0, 5), [filteredPages]);
 
   return (
     <div className="p-4 space-y-6">
@@ -149,7 +123,7 @@ export default function HomePage() {
             variant="ghost"
             size="sm"
             className="text-xs text-muted-foreground h-7"
-            onClick={() => setLocation("/editor")}
+            onClick={() => setLocation("/editor?tab=saved")}
           >
             Lihat semua
           </Button>
@@ -192,70 +166,36 @@ export default function HomePage() {
               const judul = getRichText(page, "Judul");
               const title = judul || topik || "Tanpa Judul";
               const tone = getSelect(page, "Tone");
-              const status = getSelect(page, "Status Revisi") || "Draft";
               const platform = getSelect(page, "Platform");
               const tanggal = getDate(page, "Tanggal");
 
               return (
-                <SwipeableItem
+                <div
                   key={page.id}
-                  leftActions={[
-                    {
-                      label: "Publish",
-                      icon: <CheckCircle2 size={18} />,
-                      bgClass: "bg-green-500",
-                      direction: "left",
-                      onClick: () => handlePublish(page),
-                    },
-                  ]}
-                  rightActions={[
-                    {
-                      label: "Download",
-                      icon: <FileDown size={18} />,
-                      bgClass: "bg-sky-500",
-                      direction: "right",
-                      onClick: () => handleDownloadPDF(page),
-                    },
-                    {
-                      label: "Status",
-                      icon: <RefreshCw size={18} />,
-                      bgClass: "bg-amber-500",
-                      direction: "right",
-                      onClick: () => { setPageForStatus(page); setChangeStatusOpen(true); },
-                    },
-                    {
-                      label: "Hapus",
-                      icon: <Trash2 size={18} />,
-                      bgClass: "bg-red-500",
-                      direction: "right",
-                      onClick: () => handleDelete(page),
-                    },
-                  ]}
+                  data-testid={`script-card-${page.id}`}
+                  className="bg-card border border-border rounded-xl p-3.5 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setDraft(pageToPartialDraft(page));
+                    setLocation("/editor");
+                  }}
                 >
-                  <div
-                    data-testid={`script-card-${page.id}`}
-                    className="bg-card border border-border rounded-xl p-3.5 flex items-start gap-3 hover:border-primary/30 transition-colors cursor-pointer"
-                    onClick={() => {
-                      setDraft(pageToPartialDraft(page));
-                      setLocation("/editor");
-                    }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-foreground truncate">
-                        {title}
-                      </div>
-                      {topik && judul && (
-                        <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {topik}
-                        </div>
-                      )}
-                      <div className="mt-1.5">
-                        <InlineDatePicker
-                          value={tanggal}
-                          onSave={(d) => handleDateChange(page, d)}
-                        />
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-foreground truncate">
+                      {title}
                     </div>
+                    {topik && judul && (
+                      <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {topik}
+                      </div>
+                    )}
+                    <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                      <InlineDatePicker
+                        value={tanggal}
+                        onSave={(d) => handleDateChange(page, d)}
+                      />
+                    </div>
+                  </div>
+                  {(platform || tone) && (
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       {platform && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
@@ -267,63 +207,14 @@ export default function HomePage() {
                           {tone}
                         </Badge>
                       )}
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] px-1.5 py-0 h-5 ${statusColor(status)}`}
-                      >
-                        {status}
-                      </Badge>
                     </div>
-                  </div>
-                </SwipeableItem>
+                  )}
+                </div>
               );
             })}
           </div>
         )}
-
-        {loaded && displayPages.length > 0 && (
-          <p className="text-[10px] text-muted-foreground text-center mt-2">
-            Geser kartu ke kiri untuk opsi tambahan
-          </p>
-        )}
       </div>
-
-      {/* Change status dialog */}
-      <Dialog open={changeStatusOpen} onOpenChange={setChangeStatusOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ganti Status Revisi</DialogTitle>
-          </DialogHeader>
-          {pageForStatus && (
-            <p className="text-xs text-muted-foreground -mt-2 truncate">
-              {getRichText(pageForStatus, "Judul") ||
-                getTitle(pageForStatus) ||
-                "Script"}
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            {STATUS_OPTIONS.map((s) => (
-              <Button
-                key={s}
-                variant={
-                  pageForStatus &&
-                  getSelect(pageForStatus, "Status Revisi") === s
-                    ? "default"
-                    : "outline"
-                }
-                className="h-11"
-                onClick={() => {
-                  if (!pageForStatus) return;
-                  handleStatusChange(pageForStatus.id, s);
-                  setChangeStatusOpen(false);
-                }}
-              >
-                {s}
-              </Button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
