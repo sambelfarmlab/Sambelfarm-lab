@@ -74,26 +74,34 @@ export function pageToPartialDraft(page: NotionPage): Partial<Draft> {
 }
 
 export function buildNotionProperties(draft: Draft) {
-  return {
+  // Notion rejects null for number fields — omit them when value is null/0
+  const tribeScore = (v: number | null | undefined) =>
+    v != null && v !== 0 ? { number: v } : undefined;
+
+  const props: Record<string, unknown> = {
     Topik: { title: [{ text: { content: draft.topik || "Tanpa Judul" } }] },
     Judul: { rich_text: [{ text: { content: draft.judul || "" } }] },
-    Platform: { select: { name: draft.platform } },
-    "Jenis Konten": { select: { name: draft.jenisKonten } },
-    Tone: { select: { name: draft.tone } },
+    Platform: { select: { name: draft.platform || "TikTok" } },
+    "Jenis Konten": { select: { name: draft.jenisKonten || "Reels" } },
+    Tone: { select: { name: draft.tone || "Storytelling" } },
     Tanggal: {
       date: { start: draft.tanggal || new Date().toISOString().split("T")[0] },
     },
-    Script: { rich_text: [{ text: { content: draft.script } }] },
-    "Skor Viralitas": { number: draft.skorViralitas },
+    Script: { rich_text: [{ text: { content: draft.script || "" } }] },
     "Analisis AI": { rich_text: [{ text: { content: draft.analisisAI || "" } }] },
     Rekomendasi: { rich_text: [{ text: { content: draft.rekomendasi || "" } }] },
     "Caption TikTok": { rich_text: [{ text: { content: draft.captionTikTok || "" } }] },
     "Caption Instagram": { rich_text: [{ text: { content: draft.captionInstagram || "" } }] },
     "Caption YT Shorts": { rich_text: [{ text: { content: draft.captionYTShorts || "" } }] },
-    TRIBE_Trigger: { number: draft.tribeTrigger },
-    TRIBE_Resonance: { number: draft.tribeResonance },
-    TRIBE_Impact: { number: draft.tribeImpact },
-    TRIBE_Behavior: { number: draft.tribeBehavior },
-    TRIBE_Engagement: { number: draft.tribeEngagement },
   };
+
+  // Only include number fields when they have a real value
+  if (draft.skorViralitas != null) props["Skor Viralitas"] = { number: draft.skorViralitas };
+  const t = tribeScore(draft.tribeTrigger);   if (t) props["TRIBE_Trigger"]   = t;
+  const r = tribeScore(draft.tribeResonance); if (r) props["TRIBE_Resonance"] = r;
+  const i = tribeScore(draft.tribeImpact);    if (i) props["TRIBE_Impact"]    = i;
+  const b = tribeScore(draft.tribeBehavior);  if (b) props["TRIBE_Behavior"]  = b;
+  const e = tribeScore(draft.tribeEngagement);if (e) props["TRIBE_Engagement"]= e;
+
+  return props;
 }

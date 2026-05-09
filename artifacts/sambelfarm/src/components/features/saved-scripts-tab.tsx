@@ -8,19 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { SavedScriptCard } from "@/components/features/saved-script-card";
 import { type NotionPage, getRichText, getTitle, getSelect } from "@/lib/notion-helpers";
-import { PLATFORMS, JENIS_KONTEN, TONES } from "@/components/features/content-detail-form";
+import { PLATFORMS, JENIS_KONTEN, TONES, STATUS_REVISI_OPTIONS } from "@/components/features/content-detail-form";
 import { useClaudeProxy } from "@workspace/api-client-react";
 import { addTokenUsage } from "@/lib/token-usage";
 import { useToast } from "@/hooks/use-toast";
 import { useDraft } from "@/lib/draft";
-
-export const STATUS_REVISI_OPTIONS = [
-  "Draft",
-  "Revisi",
-  "Final",
-  "Terjadwal",
-  "Dipublikasi",
-];
 
 interface Props {
   pages: NotionPage[];

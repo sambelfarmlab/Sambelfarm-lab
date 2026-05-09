@@ -206,4 +206,12 @@ export function ContentDetailForm({
   );
 }
 
+export const STATUS_REVISI_OPTIONS = [
+  "Draft",
+  "Revisi",
+  "Final",
+  "Terjadwal",
+  "Dipublikasi",
+];
+
 export { PLATFORMS, JENIS_KONTEN, TONES };

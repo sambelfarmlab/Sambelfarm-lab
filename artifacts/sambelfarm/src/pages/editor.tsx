@@ -104,9 +104,27 @@ export default function EditorPage() {
     };
 
     if (editingPageId) {
-      notionUpdate.mutate({ pageId: editingPageId, data: { properties } as Record<string, string> }, { onSuccess, onError });
+      notionUpdate.mutate(
+        { pageId: editingPageId, data: { properties } as unknown as Record<string, string> },
+        {
+          onSuccess,
+          onError: (err: unknown) => {
+            console.error("[Editor] Gagal update Notion page:", err);
+            onError();
+          },
+        },
+      );
     } else {
-      notionCreate.mutate({ data: { parent: { database_id: "" }, properties } as Record<string, string> }, { onSuccess, onError });
+      notionCreate.mutate(
+        { data: { database_id: "", properties } as unknown as Record<string, string> },
+        {
+          onSuccess,
+          onError: (err: unknown) => {
+            console.error("[Editor] Gagal create Notion page:", err);
+            onError();
+          },
+        },
+      );
     }
   };
 

@@ -128,6 +128,7 @@ router.post("/notion/pages", async (req, res): Promise<void> => {
   const data = await response.json() as Record<string, unknown>;
   if (!response.ok) {
     req.log.warn({ status: response.status, data }, "Notion create page failed");
+    console.error("[Notion CREATE] Gagal:", response.status, JSON.stringify(data));
     res.status(response.status).json({ error: (data as { message?: string }).message ?? "Notion error" });
     return;
   }
@@ -174,6 +175,7 @@ router.patch("/notion/pages/:pageId", async (req, res): Promise<void> => {
   const data = await response.json() as Record<string, unknown>;
   if (!response.ok) {
     req.log.warn({ status: response.status, data }, "Notion update page failed");
+    console.error("[Notion PATCH] Gagal:", response.status, JSON.stringify(data));
     res.status(response.status).json({ error: (data as { message?: string }).message ?? "Notion error" });
     return;
   }
